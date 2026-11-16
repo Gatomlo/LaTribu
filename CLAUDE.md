@@ -7,11 +7,12 @@ App familiale privée (parents = un compte partagé e-mail + mot de passe ; enfa
 Node >= 22.5, Express, SQLite (`node:sqlite`), front PWA. Calquée sur `../listes-courses` (Cabas). Monté dans `../node-gateway` sous `/latribu`.
 
 ## État
-**Étape 1 (socle) codée** : installation (premier compte parent), connexion parent (e-mail + mot de passe, scrypt), profils enfants créés/supprimés par les parents (PIN scrypt, verrou 5 min après 5 échecs), **session enfant persistante** (cookie 1 an, révocable), changement de mot de passe, interface de connexion + Réglages > Enfants. Les autres écrans de `public/app.js` sont des « Bientôt disponible » : étape 2 = tâches (CAHIER §7). Tests : `npm test` (node:test).
+**Étapes 1-2 codées.** Étape 1 (socle) : installation (premier compte parent), connexion parent (e-mail + mot de passe, scrypt), profils enfants créés/supprimés par les parents (PIN scrypt, verrou 5 min après 5 échecs), **session enfant persistante** (cookie 1 an, révocable). Étape 2 : tâches planifiées (tous les jours / certains jours / chaque semaine / chaque mois / date précise, pour 1 à N enfants, moment matin-après-midi-soir, description, points libres, heure de rappel **stockée mais pas encore notifiée**), missions ouvertes (premier arrivé), génération paresseuse des occurrences, déclaration par l'enfant, validation/refus (avec motif) par le parent, registre de points (solde + XP + niveau, 100 XP/niveau), ajustement libre bonus/pénalité (plancher 0), historique des points enfant et parent. Reste : étape 3 magasin, 4 ludique (séries, badges, avatar), 5 notifications push/PWA (CAHIER §7). Tests : `npm test` (node:test).
 
 ## Fichiers clés
 - `server.js` — app Express exportée (statique, `/api`, page avec `<base>` = `{{ROOT}}`).
 - `lib/db.js` — SQLite `data/latribu.db` (`LATRIBU_DATA_DIR`), migrations par `PRAGMA user_version` : ne jamais modifier une migration déployée, en ajouter une.
+- `lib/tasks.js` — tâches, génération des occurrences (`generate()` idempotente, invalidée à chaque modif), cycle déclaré/validé/refusé. `lib/points.js` — registre `movements` (solde = SUM(delta), XP = SUM(xp)). `lib/dates.js` — dates AAAA-MM-JJ, fuseau Europe/Brussels, lundi = 1.
 - `lib/auth.js` — sessions en base (rôle parent/enfant), empreintes, limiteurs. `lib/api.js` — routes. `lib/util.js`, `lib/security.js`.
 - `public/` — `index.html`, `style.css`, `app.js` (SPA sans build, CSP sans script en ligne). `maquette/` — référence visuelle et fonctionnelle (état local, non reliée à l'API).
 - `scripts/set-password.js` — secours : `npm run set-password -- <email> <mot de passe>`.
@@ -29,7 +30,7 @@ Node >= 22.5, Express, SQLite (`node:sqlite`), front PWA. Calquée sur `../liste
 - Tâche : moment (matin/après-midi/soir) + heure de rappel push.
 - Solde = somme du registre `mouvements` (jamais d'UPDATE) ; XP séparé, ne diminue jamais.
 - Achat : points réservés à la demande, rendus si refus.
-- Occurrence = tâche x enfant x date ; statuts : à faire / en attente / validée / refusée / manquée.
+- Occurrence = tâche x enfant x date (mission ouverte : `kid_id` NULL jusqu'à la prise, `due_date` = jour de la prise) ; statuts : à faire / en attente / validée / refusée / manquée.
 
 ## Méthode
 Réponses en français. Tester par API/curl avant captures. Mettre ce fichier à jour quand l'architecture change.
