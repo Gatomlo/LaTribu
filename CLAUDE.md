@@ -41,7 +41,7 @@ Tests : `npm test` (node:test).
 - Migrations : uniquement additives (`lib/db.js`), jouées au démarrage ; avant toute migration d'une base existante, une **sauvegarde datée** est faite dans `data/backups/` (5 conservées). Les réglages lus sont fusionnés avec des valeurs par défaut (`{...DEFAULTS, ...stocké}`) : un nouveau réglage ne réinitialise jamais les anciens.
 - Clé VAPID : ne jamais la régénérer (tous les abonnements deviendraient invalides). Si la base est restaurée ou la clé change, l'app se réabonne seule à l'ouverture (`pushSync`) et le service worker gère `pushsubscriptionchange`.
 - Service worker : changer `VERSION` et `FILES` dans `public/sw.js` quand un fichier est ajouté ; les abonnements push survivent aux changements de version.
-- Icônes : `python scripts/make-icons.py` (Pillow) régénère l'icône de l'app, le favicon, l'icône monochrome `badge-96.png` et une icône par type de notification (`notif-reminder|ok|reward|review|alert.png`, choisies dans `lib/push.js` via `ICONS`). `tests/update.test.js` vérifie que tout ce qui est référencé existe.
+- Icônes : `python scripts/make-icons.py` (Pillow) régénère l'icône de l'app (« la tribu » : trois bouilles souriantes sur dégradé violet-rose-orange, aussi dessinée en SVG), le favicon, l'icône monochrome `badge-96.png` et une icône par type de notification (`notif-reminder|ok|reward|review|alert.png`, choisies dans `lib/push.js` via `ICONS`). `tests/update.test.js` vérifie que tout ce qui est référencé existe.
 
 ## Méthode
 Réponses en français. Tester par API/curl avant captures. Mettre ce fichier à jour quand l'architecture change.

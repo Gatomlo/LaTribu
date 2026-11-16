@@ -1,6 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5efc"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5efc"/><stop offset=".55" stop-color="#d946ef"/><stop offset="1" stop-color="#ff8c42"/></linearGradient></defs>
   <rect width="64" height="64" rx="14" fill="url(#g)"/>
-  <path d="M32 11 9 32h7v21h32V32h7z" fill="#fff"/>
-  <rect x="27" y="38" width="10" height="15" fill="#8b7bff"/>
+  <circle cx="19" cy="38" r="12.6" fill="#fff"/>
+  <circle cx="19" cy="38" r="11" fill="#2dd4bf"/>
+  <circle cx="15.04" cy="36.35" r="1.32" fill="#3c1e5a"/>
+  <circle cx="22.96" cy="36.35" r="1.32" fill="#3c1e5a"/>
+  <path d="M23.98 41.19A5.50 4.95 0 0 1 14.02 41.19" fill="none" stroke="#3c1e5a" stroke-width="1.60"/>
+  <circle cx="12.18" cy="41.08" r="1.65" fill="#ff96aa"/>
+  <circle cx="25.82" cy="41.08" r="1.65" fill="#ff96aa"/>
+  <circle cx="45" cy="38" r="12.6" fill="#fff"/>
+  <circle cx="45" cy="38" r="11" fill="#38bdf8"/>
+  <circle cx="41.04" cy="36.35" r="1.32" fill="#3c1e5a"/>
+  <circle cx="48.96" cy="36.35" r="1.32" fill="#3c1e5a"/>
+  <path d="M49.98 41.19A5.50 4.95 0 0 1 40.02 41.19" fill="none" stroke="#3c1e5a" stroke-width="1.60"/>
+  <circle cx="38.18" cy="41.08" r="1.65" fill="#ff96aa"/>
+  <circle cx="51.82" cy="41.08" r="1.65" fill="#ff96aa"/>
+  <circle cx="32" cy="31" r="16.6" fill="#fff"/>
+  <circle cx="32" cy="31" r="15" fill="#ffd23f"/>
+  <circle cx="26.60" cy="28.75" r="1.80" fill="#3c1e5a"/>
+  <circle cx="37.40" cy="28.75" r="1.80" fill="#3c1e5a"/>
+  <path d="M38.80 35.35A7.50 6.75 0 0 1 25.20 35.35" fill="none" stroke="#3c1e5a" stroke-width="2.10"/>
+  <circle cx="22.70" cy="35.20" r="2.25" fill="#ff96aa"/>
+  <circle cx="41.30" cy="35.20" r="2.25" fill="#ff96aa"/>
+  <polygon points="50.00,6.00 51.58,11.42 57.00,13.00 51.58,14.58 50.00,20.00 48.42,14.58 43.00,13.00 48.42,11.42" fill="#fff"/>
+  <polygon points="13.00,13.00 13.91,16.09 17.00,17.00 13.91,17.91 13.00,21.00 12.09,17.91 9.00,17.00 12.09,16.09" fill="#fff" fill-opacity=".86"/>
 </svg>
