@@ -39,6 +39,7 @@ Types :
 
 Cycle d'une occurrence : `à faire → en attente de validation → validée` (ou `refusée` avec motif, retour à `à faire`) ; `manquée` si l'échéance passe.
 - L'enfant déclare « fait » (photo optionnelle, activable par tâche) ; le **parent valide ou refuse** ; les points sont crédités à la validation.
+- Les réglages de notification sont stockés en base et **conservés lors des mises à jour** (sauvegarde automatique avant migration). Tant que les notifications ne sont pas actives sur l'appareil, un **encart d'activation** s'affiche sur l'accueil (enfant et parent), masquable 7 jours. Chaque type de notification a sa propre icône.
 - Notifications push : au parent à chaque déclaration (désactivable) et en rappel quotidien de validation (heure réglable) ; à l'enfant pour ses rappels de tâches et à chaque décision.
 
 ### 3.3 Points, niveaux, pénalités

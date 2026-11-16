@@ -30,7 +30,7 @@ const sub = (name) => ({ endpoint: `https://push.example/${name}`, keys: { p256d
 
 const sent = [];
 let failWith = null;
-push.setSender(async (s, payload) => { if (failWith) throw failWith; sent.push({ endpoint: s.endpoint.split('/').pop(), title: payload.title, body: payload.body }); });
+push.setSender(async (s, payload) => { if (failWith) throw failWith; sent.push({ endpoint: s.endpoint.split('/').pop(), title: payload.title, body: payload.body, icon: payload.icon }); });
 const take = () => sent.splice(0);
 const HM = (h, m) => h * 60 + m;
 
@@ -115,6 +115,7 @@ test('événements : mission déclarée, validée, demande d\'achat, remise ; al
   assert.equal(dec.length, 1);
   assert.equal(dec[0].endpoint, 'kid1');
   assert.match(dec[0].body, /Poubelles.*\+40/);
+  assert.equal(dec[0].icon, 'notif-ok.png', 'icône propre au type de notification');
 
   const rid = (await parent('rewards', 'POST', { title: 'Glace', price: 10, kids: [k] })).data.id;
   const buy = (await kid('me/purchases', 'POST', { rewardId: rid })).data;

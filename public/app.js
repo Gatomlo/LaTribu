@@ -39,7 +39,7 @@ async function api(path, method = 'GET', body) {
 }
 
 // ---------- État ----------
-const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true } }, push: 'off', fx: false, sheet: null, F: {} };
+const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true } }, push: 'unknown', fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -70,13 +70,13 @@ async function loadData() {
     [S.kids, S.review, S.pending] = await Promise.all([api('kids'), api('review'), api('purchases/pending')]);
     if (S.tab === 'tasks' || S.sheet) S.tasks = await api('tasks');
     if (S.tab === 'shops' || S.sheet) [S.rewards, S.accessories] = await Promise.all([api('rewards'), api('accessories')]);
-    if (S.tab === 'set') { S.settings = await api('settings'); S.push = await pushState(); }
+    if (S.tab === 'set') S.settings = await api('settings');
   } else if (S.view === 'kid') {
     [S.me, S.missions] = await Promise.all([api('me'), api('me/missions')]);
     const cel = S.me.celebrate; // niveau gagné ou badge obtenu depuis la dernière ouverture
     if (!S.sheet && (cel.levelUp || cel.badges.length)) { S.sheet = sheetCelebrate; S.fx = true; }
     if (S.tab === 'shop') [S.shop, S.purchases] = await Promise.all([api('me/shop'), api('me/purchases')]);
-    if (S.tab === 'me') { [S.hist, S.purchases] = await Promise.all([api('me/history'), api('me/purchases')]); S.push = await pushState(); }
+    if (S.tab === 'me') [S.hist, S.purchases] = await Promise.all([api('me/history'), api('me/purchases')]);
   }
 }
 async function refresh() {
@@ -87,6 +87,7 @@ async function refresh() {
   else { S.view = 'login'; S.profiles = await api('profiles'); }
   await loadData();
   render();
+  if (S.view === 'parent' || S.view === 'kid') pushRefresh();
 }
 
 // ---------- Rendu ----------
@@ -158,7 +159,7 @@ function renderKid(a, nav) {
   const M = S.missions;
   if (S.tab === 'home') {
     const done = M.today.filter((o) => o.status === 'done').length;
-    a.innerHTML = hero + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
+    a.innerHTML = hero + pushBanner() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
       : '<div class="card mini" style="margin-top:14px;text-align:center">Rien de prévu aujourd\'hui. Jette un œil aux missions ouvertes.</div>');
   } else if (S.tab === 'missions') {
     a.innerHTML = `<h2>Missions</h2><div class="sec">Missions ouvertes</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>Premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Aucune mission ouverte pour le moment.'))
@@ -177,7 +178,7 @@ function renderParent(a, nav) {
     return;
   }
   if (S.tab === 'home') {
-    a.innerHTML = `<h2>À valider</h2><p class="mini" style="margin-top:2px">${S.review.length + S.pending.length ? 'Des décisions t\'attendent.' : 'Rien à valider pour le moment.'}</p><div class="sec">Missions déclarées (${S.review.length})</div>` +
+    a.innerHTML = `<h2>À valider</h2><p class="mini" style="margin-top:2px">${S.review.length + S.pending.length ? 'Des décisions t\'attendent.' : 'Rien à valider pour le moment.'}</p>${pushBanner()}<div class="sec">Missions déclarées (${S.review.length})</div>` +
       (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${esc(o.kidName)} · ${dl(o.doneAt)}</small></div><span class="pts">+${o.points}</span></div>
       <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusesheet" data-id="${o.id}">Refuser</button><button class="btn ok sp" data-a="approve" data-id="${o.id}">Valider</button></div>`).join('') || emptyCard('Aucune mission en attente.')) + purchasesSection();
   } else if (S.tab === 'tasks') {
@@ -325,6 +326,7 @@ const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((
 async function pushState() {
   if (!pushSupported()) return 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
+  if (Notification.permission !== 'granted') return 'off'; // pas encore demandé : inutile de toucher au service worker
   try { const reg = await swReady(); return reg ? ((await reg.pushManager.getSubscription()) ? 'on' : 'off') : 'unsupported'; } catch { return 'unsupported'; }
 }
 const keyBytes = (b64) => Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - b64.length % 4) % 4)), (c) => c.charCodeAt(0));
@@ -335,6 +337,36 @@ async function pushOn() {
   const { publicKey } = await api('push/key');
   const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
   await api('push/subscribe', 'POST', sub.toJSON());
+}
+// À chaque ouverture : l'abonnement est réenregistré côté serveur (base restaurée, appareil renouvelé) et
+// recréé si les clés du serveur ont changé. Les réglages de notification, eux, vivent côté serveur.
+async function pushSync() {
+  if (!pushSupported() || Notification.permission !== 'granted') return;
+  const reg = await swReady(), sub = reg && await reg.pushManager.getSubscription();
+  if (!sub) return;
+  const { publicKey } = await api('push/key'), want = keyBytes(publicKey), have = sub.options && sub.options.applicationServerKey;
+  if (have && (have.byteLength !== want.length || new Uint8Array(have).some((b, i) => b !== want[i]))) {
+    await sub.unsubscribe();
+    return api('push/subscribe', 'POST', (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: want })).toJSON());
+  }
+  return api('push/subscribe', 'POST', sub.toJSON());
+}
+async function pushRefresh() {
+  try { await pushSync(); } catch { /* hors connexion : sans importance */ }
+  S.push = await pushState();
+  if (!S.sheet) render();
+}
+// Encart d'activation, tant que les notifications ne sont pas actives (masqué 7 jours après « Plus tard »).
+function pushBanner() {
+  const st = S.push, ios = isIOS && !standalone();
+  if (st === 'on' || st === 'unknown' || (st === 'unsupported' && !ios)) return '';
+  try { if (Date.now() - Number(localStorage.getItem('tribu_push_later') || 0) < 7 * 864e5) return ''; } catch { /* stockage indisponible */ }
+  const kid = S.view === 'kid';
+  const [title, text, canEnable] = st === 'denied' ? ['Notifications bloquées', "Autorise-les dans les réglages du navigateur pour recevoir les rappels.", false]
+    : st === 'unsupported' ? ["Installe l'app", "Ajoute La Tribu à l'écran d'accueil (Partager, puis Sur l'écran d'accueil) pour recevoir les notifications.", false]
+    : kid ? ['Ne rate plus tes missions', "Active les rappels : tu seras prévenu à l'heure de chaque tâche.", true]
+    : ['Reste informé', "Active les notifications pour savoir quand une mission ou une demande t'attend.", true];
+  return `<div class="card" style="display:flex;gap:12px;align-items:flex-start;border:1.5px solid var(--acc)"><span style="color:var(--acc);margin-top:2px">${ic('bell')}</span><div class="sp"><b>${title}</b><div class="mini" style="margin-top:2px">${text}</div><div class="row" style="margin-top:10px;gap:8px">${canEnable ? '<button class="btn sm" data-a="pushtoggle">Activer</button>' : ''}<button class="btn ghost sm" data-a="pushlater">Plus tard</button></div></div></div>`;
 }
 async function pushOff() {
   if (!pushSupported() || Notification.permission !== 'granted') return; // jamais abonné : rien à retirer
@@ -406,7 +438,10 @@ const A = {
   tab(d) { S.tab = d.t; $('#app').scrollTop = 0; },
   async closesheet() { if (S.sheet === sheetCelebrate) await api('me/seen', 'POST', {}); S.sheet = null; },
   async celebrated() { await api('me/seen', 'POST', {}); S.sheet = null; },
-  async pushtoggle() { if (S.push === 'on') { await pushOff(); toast('Notifications coupées'); } else { await pushOn(); toast('Notifications activées'); } },
+  async pushtoggle() {
+    if (S.push === 'on') { await pushOff(); S.push = await pushState(); toast('Notifications coupées'); } else { await pushOn(); S.push = await pushState(); toast('Notifications activées'); }
+  },
+  pushlater() { try { localStorage.setItem('tribu_push_later', String(Date.now())); } catch { /* stockage indisponible */ } },
   async pushtest() { const r = await api('push/test', 'POST', {}); toast(r.sent ? 'Notification envoyée' : 'Aucun appareil abonné'); },
   async notifalert() { S.settings = await api('settings', 'PUT', { notif: { alert: !S.settings.notif.alert } }); },
   async notifagain() { S.settings = await api('settings', 'PUT', { notif: { remindAgain: !S.settings.notif.remindAgain } }); },

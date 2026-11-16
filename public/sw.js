@@ -2,8 +2,9 @@
 // notifications push. Portée = dossier de l'app (/latribu/ dans la passerelle). L'API n'est jamais
 // mise en cache : les données viennent toujours du serveur.
 // Changer VERSION quand la liste des fichiers change.
-const VERSION = 'latribu-v1';
-const FILES = ['./', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'badge-96.png'];
+const VERSION = 'latribu-v2';
+const FILES = ['./', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png', 'badge-96.png',
+  'notif-reminder.png', 'notif-ok.png', 'notif-reward.png', 'notif-review.png', 'notif-alert.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -29,8 +30,17 @@ self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'La Tribu', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(d.title || 'La Tribu', {
-    body: d.body || '', tag: d.tag || 'latribu', icon: 'icon-192.png', badge: 'badge-96.png', data: { url: d.url || './' },
+    body: d.body || '', tag: d.tag || 'latribu', icon: d.icon || 'icon-192.png', badge: 'badge-96.png', data: { url: d.url || './' },
   }));
+});
+
+// Le service de push a renouvelé l'abonnement : on se réabonne et on prévient le serveur.
+self.addEventListener('pushsubscriptionchange', (e) => {
+  e.waitUntil((async () => {
+    const { publicKey } = await (await fetch('api/push/key', { credentials: 'same-origin' })).json();
+    const sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: publicKey });
+    await fetch('api/push/subscribe', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) });
+  })().catch(() => { /* hors connexion : l'app se réabonnera à sa prochaine ouverture */ }));
 });
 
 self.addEventListener('notificationclick', (e) => {

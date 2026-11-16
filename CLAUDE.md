@@ -36,5 +36,12 @@ Tests : `npm test` (node:test).
 - Achat : points ET stock réservés à la demande (movement négatif `Réservé : …`), rendus si refus (movement `Remboursé : …`, sans XP). Limite par enfant comptée sur `purchases.created_date` (hors refusés). Stock partagé = `rewards.stock` + `shared=1` ; individuel = `reward_kids.stock`. Modifier le stock d'une récompense le réinitialise.
 - Occurrence = tâche x enfant x date (mission ouverte : `kid_id` NULL jusqu'à la prise, `due_date` = jour de la prise) ; statuts : à faire / en attente / validée / refusée / manquée.
 
+## Mises à jour et déploiement
+- **Tout l'état durable est dans la base SQLite** (`data/latribu.db`, ou `LATRIBU_DATA_DIR`) : comptes, enfants, points, **réglages de notification** (table `settings`), **clés VAPID**, **abonnements push par appareil**. Une mise à jour du code ne doit donc jamais écraser ce dossier : en production (copie dans `apps/latribu`), garder `data/` à part (ou définir `LATRIBU_DATA_DIR` hors du dossier déployé) et ne copier que le code.
+- Migrations : uniquement additives (`lib/db.js`), jouées au démarrage ; avant toute migration d'une base existante, une **sauvegarde datée** est faite dans `data/backups/` (5 conservées). Les réglages lus sont fusionnés avec des valeurs par défaut (`{...DEFAULTS, ...stocké}`) : un nouveau réglage ne réinitialise jamais les anciens.
+- Clé VAPID : ne jamais la régénérer (tous les abonnements deviendraient invalides). Si la base est restaurée ou la clé change, l'app se réabonne seule à l'ouverture (`pushSync`) et le service worker gère `pushsubscriptionchange`.
+- Service worker : changer `VERSION` et `FILES` dans `public/sw.js` quand un fichier est ajouté ; les abonnements push survivent aux changements de version.
+- Icônes : `python scripts/make-icons.py` (Pillow) régénère l'icône de l'app, le favicon, l'icône monochrome `badge-96.png` et une icône par type de notification (`notif-reminder|ok|reward|review|alert.png`, choisies dans `lib/push.js` via `ICONS`). `tests/update.test.js` vérifie que tout ce qui est référencé existe.
+
 ## Méthode
 Réponses en français. Tester par API/curl avant captures. Mettre ce fichier à jour quand l'architecture change.
