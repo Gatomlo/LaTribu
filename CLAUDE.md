@@ -7,12 +7,19 @@ App familiale privée (parents = un compte partagé e-mail + mot de passe ; enfa
 Node >= 22.5, Express, SQLite (`node:sqlite`), front PWA. Calquée sur `../listes-courses` (Cabas). Monté dans `../node-gateway` sous `/latribu`.
 
 ## État
-Phase cahier des charges + maquette (aucun code applicatif).
+**Étape 1 (socle) codée** : installation (premier compte parent), connexion parent (e-mail + mot de passe, scrypt), profils enfants créés/supprimés par les parents (PIN scrypt, verrou 5 min après 5 échecs), **session enfant persistante** (cookie 1 an, révocable), changement de mot de passe, interface de connexion + Réglages > Enfants. Les autres écrans de `public/app.js` sont des « Bientôt disponible » : étape 2 = tâches (CAHIER §7). Tests : `npm test` (node:test).
+
+## Fichiers clés
+- `server.js` — app Express exportée (statique, `/api`, page avec `<base>` = `{{ROOT}}`).
+- `lib/db.js` — SQLite `data/latribu.db` (`LATRIBU_DATA_DIR`), migrations par `PRAGMA user_version` : ne jamais modifier une migration déployée, en ajouter une.
+- `lib/auth.js` — sessions en base (rôle parent/enfant), empreintes, limiteurs. `lib/api.js` — routes. `lib/util.js`, `lib/security.js`.
+- `public/` — `index.html`, `style.css`, `app.js` (SPA sans build, CSP sans script en ligne). `maquette/` — référence visuelle et fonctionnelle (état local, non reliée à l'API).
+- `scripts/set-password.js` — secours : `npm run set-password -- <email> <mot de passe>`.
 
 ## Contraintes node-gateway
 - `module.exports = app` ; `listen()` et handlers globaux uniquement sous `if (require.main === module)`.
 - Chemins front/API relatifs, cookies `path=/latribu`. Pas de `process.exit()` ni `setInterval` global.
-- Lancement local : jonction `node-gateway/apps/latribu` -> ce dépôt, puis `npm start` dans la passerelle.
+- Lancement local : jonction `node-gateway/apps/latribu` -> ce dépôt (déjà créée), puis `npm start` dans la passerelle (`/latribu/`). Seul : `PORT=5191 npm start`.
 
 ## Modèle de données non évident
 - Session enfant persistante après le PIN (cookie longue durée), révocable par un parent.

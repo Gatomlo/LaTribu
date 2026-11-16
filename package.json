@@ -1,0 +1,20 @@
+{
+  "name": "latribu",
+  "version": "0.1.0",
+  "private": true,
+  "description": "La Tribu : tâches et récompenses des enfants (points, magasin, niveaux). Node.js + SQLite, montable dans node-gateway.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test tests/*.test.js",
+    "set-password": "node scripts/set-password.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "compression": "^1.8.2",
+    "express": "^5.3.0"
+  }
+}
