@@ -93,16 +93,16 @@ Calquée sur le Cabas (`listes-courses`) pour un montage dans **node-gateway** :
 ## 6. Modèle de données (tables)
 `familles` · `parents` · `enfants` (pin_hash, avatar, style, xp) · `taches` (type, recurrence json, moment : matin/apres/soir/null, rappel_heure, echeance, bonus, validation, photo_requise, penalite) · `taches_enfants` · `occurrences` (tache, enfant, date, statut, preuve, motif) · `mouvements` (enfant, delta, motif, ref_type, ref_id, date) · `recompenses` (titre, description, prix, limite_periode, stock, stock_partage, actif) · `recompenses_enfants` (récompense, enfant, stock individuel restant) · `achats` (statut : demande / remis / refuse) · `objectifs` · `badges` · `badges_enfants` · `accessoires` · `accessoires_enfants` (porté) · `push_abonnements` (par appareil) · `notifications`.
 
-## 7. Étapes
-1. Socle : dépôt, comptes parent, profils enfants + PIN, montage gateway.
-2. Tâches : création, récurrences, génération des occurrences, déclaration, validation, registre de points.
-3. Magasin : catalogues, achats avec approbation, limites, objectif d'épargne.
-4. Ludique : niveaux/XP, séries, badges, avatar, animations.
-5. Notifications push planifiées (Web Push + VAPID, comme le Cabas, planificateur sans `setInterval` global), PWA hors ligne, polish.
+## 7. Étapes (toutes réalisées)
+1. Socle : dépôt, comptes parent, profils enfants + PIN, montage gateway. ✔
+2. Tâches : création, récurrences, génération des occurrences, déclaration, validation, registre de points. ✔
+3. Magasin : catalogues, achats avec approbation, limites et stock, objectif d'épargne, accessoires. ✔
+4. Ludique : niveaux/XP, séries et bonus, badges, célébrations, sons optionnels. ✔
+5. Notifications Web Push planifiées (clés VAPID en base, minuteur unique non bloquant), PWA installable. ✔ (à valider sur téléphone)
 
 ## 8. Points à confirmer
 - Solde plancher à 0 (hypothèse retenue) ou négatif possible après pénalité ?
 - Rappels : un seul par tâche (hypothèse) ou possibilité d'en cumuler ?
-- Sur iPhone, le push exige l'installation de la PWA sur l'écran d'accueil (iOS ≥ 16.4) : acceptable ?
+- (Constat de réalisation) Sur iPhone, le push exige l'installation de la PWA sur l'écran d'accueil (iOS ≥ 16.4) : acceptable ?
 
 Maquette interactive : `maquette/index.html` (servir avec `npx http-server maquette -p 5190`).

@@ -39,7 +39,7 @@ async function api(path, method = 'GET', body) {
 }
 
 // ---------- État ----------
-const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {} }, fx: false, sheet: null, F: {} };
+const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true } }, push: 'off', fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -70,13 +70,13 @@ async function loadData() {
     [S.kids, S.review, S.pending] = await Promise.all([api('kids'), api('review'), api('purchases/pending')]);
     if (S.tab === 'tasks' || S.sheet) S.tasks = await api('tasks');
     if (S.tab === 'shops' || S.sheet) [S.rewards, S.accessories] = await Promise.all([api('rewards'), api('accessories')]);
-    if (S.tab === 'set') S.settings = await api('settings');
+    if (S.tab === 'set') { S.settings = await api('settings'); S.push = await pushState(); }
   } else if (S.view === 'kid') {
     [S.me, S.missions] = await Promise.all([api('me'), api('me/missions')]);
     const cel = S.me.celebrate; // niveau gagné ou badge obtenu depuis la dernière ouverture
     if (!S.sheet && (cel.levelUp || cel.badges.length)) { S.sheet = sheetCelebrate; S.fx = true; }
     if (S.tab === 'shop') [S.shop, S.purchases] = await Promise.all([api('me/shop'), api('me/purchases')]);
-    if (S.tab === 'me') [S.hist, S.purchases] = await Promise.all([api('me/history'), api('me/purchases')]);
+    if (S.tab === 'me') { [S.hist, S.purchases] = await Promise.all([api('me/history'), api('me/purchases')]); S.push = await pushState(); }
   }
 }
 async function refresh() {
@@ -165,7 +165,7 @@ function renderKid(a, nav) {
       + `<div class="sec">À venir</div>` + (M.upcoming.length ? M.upcoming.map((o) => missionRow({ ...o, label: o.label }, false)).join('') : emptyCard('Rien de prévu les prochains jours.'));
   } else if (S.tab === 'me') {
     a.innerHTML = hero + `<div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${b.emoji}</i>${esc(b.title)}</div>`).join('')}</div><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
-    <div class="card" style="margin-top:14px;padding:0 14px"><div class="line" data-a="sound"><div class="sp"><b>Sons</b><div class="mini">Petits sons de réussite (coupés par défaut)</div></div>${sw(soundOn())}</div></div><div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
+    <div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Voir un exemple de rappel</button>' : ''}</div><div class="card" style="margin-top:14px;padding:0 14px"><div class="line" data-a="sound"><div class="sp"><b>Sons</b><div class="mini">Petits sons de réussite (coupés par défaut)</div></div>${sw(soundOn())}</div></div><div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
   } else a.innerHTML = kidShop();
 }
 
@@ -190,6 +190,12 @@ function renderParent(a, nav) {
       <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Décerner un badge</button></div>`; }).join('');
   } else if (S.tab === 'set') {
     a.innerHTML = `<h2>Réglages</h2><div class="sec">Enfants</div><div class="card" style="padding:0 14px">${S.kids.map((k) => `<div class="line">${avatar(k, 38)}<div class="sp"><b>${esc(k.name)}</b><div class="mini">${k.age ? k.age + ' ans · ' : ''}${k.points} pts</div></div><button class="btn ghost sm" data-a="revoke" data-id="${k.id}">Déconnecter</button><button class="btn ko sm" data-a="delkid" data-id="${k.id}">Supprimer</button></div>`).join('')}<div class="line" data-a="newkid" style="color:var(--acc);font-weight:600">${ic('plus')}Ajouter un enfant</div></div>
+    <div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}
+    <div class="line" data-a="notifalert">${ic('check')}<div class="sp"><b>À chaque mission ou demande</b><div class="mini">Alerte immédiate à valider</div></div>${sw(S.settings.notif.alert)}</div>
+    <div class="line" data-a="notifagain">${ic('clock')}<div class="sp"><b>Second rappel aux enfants</b><div class="mini">1 h après l'heure si la tâche n'est pas faite</div></div>${sw(S.settings.notif.remindAgain)}</div>
+    <div class="line" style="border:0;padding-bottom:6px">${ic('bell')}<div class="sp"><b>Rappel quotidien de validation</b><div class="mini">S'il reste des éléments en attente</div></div></div>
+    <div class="opts" style="padding-bottom:14px">${[['', 'Aucun'], ['19:00', '19:00'], ['20:00', '20:00'], ['21:00', '21:00']].map(([v, l]) => `<button class="${(S.settings.notif.digest || '') === v ? 'on' : ''}" data-a="notifdigest" data-v="${v}">${l}</button>`).join('')}</div>
+    ${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Envoyer une notification de test</button>' : ''}</div>
     <div class="sec">Bonus de série</div><div class="card"><p class="mini">Points offerts quand un enfant fait toutes ses missions plusieurs jours de suite (0 = aucun bonus).</p>
     ${[3, 7, 14, 30].map((m) => `<div class="line" style="border:0;padding:6px 0"><div class="sp"><b>${m} jours</b></div><input id="f_b${m}" type="number" min="0" inputmode="numeric" value="${S.settings.streakBonus[m] ?? ''}" style="width:90px;text-align:center"></div>`).join('')}
     <button class="btn ghost sm full" style="margin-top:8px" data-a="savebonus">Enregistrer les bonus</button></div><div class="sec">Compte</div><div class="card" style="padding:0 14px"><div class="line"><div class="sp"><b>${esc(S.session.email)}</b><div class="mini">Compte partagé</div></div></div><div class="line" data-a="chpw"><div class="sp"><b>Changer le mot de passe</b></div></div></div>
@@ -310,6 +316,38 @@ const sheetDelReward = () => sheetConfirm('Supprimer cette récompense ?', 'Elle
 function sheetAccPrice() {
   return `<h2>${S.F.emoji} ${esc(S.F.title)}</h2><label>Prix en points</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(S.F.price)}"><button class="btn full" style="margin-top:18px" data-a="saveacc">Enregistrer</button>`;
 }
+// ---------- Notifications push ----------
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+// Le service worker peut ne jamais s'activer (navigateur restreint) : on n'attend pas indéfiniment.
+const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(() => r(null), 1500))]);
+async function pushState() {
+  if (!pushSupported()) return 'unsupported';
+  if (Notification.permission === 'denied') return 'denied';
+  try { const reg = await swReady(); return reg ? ((await reg.pushManager.getSubscription()) ? 'on' : 'off') : 'unsupported'; } catch { return 'unsupported'; }
+}
+const keyBytes = (b64) => Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - b64.length % 4) % 4)), (c) => c.charCodeAt(0));
+async function pushOn() {
+  if (await Notification.requestPermission() !== 'granted') throw new Error('Notifications refusées : autorise-les dans les réglages du navigateur.');
+  const reg = await swReady();
+  if (!reg) throw new Error('Les notifications ne sont pas disponibles dans ce navigateur.');
+  const { publicKey } = await api('push/key');
+  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
+  await api('push/subscribe', 'POST', sub.toJSON());
+}
+async function pushOff() {
+  if (!pushSupported() || Notification.permission !== 'granted') return; // jamais abonné : rien à retirer
+  const reg = await swReady();
+  const sub = reg && await reg.pushManager.getSubscription();
+  if (sub) { await api('push/unsubscribe', 'POST', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
+}
+function pushLine() {
+  const st = S.push;
+  if (st === 'unsupported') return `<div class="line">${ic('bell')}<div class="sp"><b>Notifications</b><div class="mini">${isIOS && !standalone() ? 'Sur iPhone, ajoute d\'abord l\'app à l\'écran d\'accueil (Partager, puis Sur l\'écran d\'accueil).' : 'Ce navigateur ne gère pas les notifications.'}</div></div></div>`;
+  if (st === 'denied') return `<div class="line">${ic('bell')}<div class="sp"><b>Notifications bloquées</b><div class="mini">Autorise-les dans les réglages du navigateur, puis reviens ici.</div></div></div>`;
+  return `<div class="line" data-a="pushtoggle">${ic('bell')}<div class="sp"><b>Notifications sur ce téléphone</b><div class="mini">${st === 'on' ? 'Activées' : 'L\'autorisation te sera demandée'}</div></div>${sw(st === 'on')}</div>`;
+}
 const soundOn = () => { try { return localStorage.getItem('tribu_sound') === '1'; } catch { return false; } };
 function beep() {
   if (!soundOn()) return;
@@ -364,10 +402,15 @@ const A = {
     const pin = S.pin; S.pin = '';
     try { await api(`kids/${S.kidId}/login`, 'POST', { pin }); S.tab = 'home'; await refresh(); toast('Session ouverte sur ce téléphone'); } catch (e) { toast(e.message); }
   },
-  async logout() { await api('logout', 'POST', {}); S.tab = 'home'; await refresh(); },
+  async logout() { try { await pushOff(); } catch { /* sans importance */ } await api('logout', 'POST', {}); S.tab = 'home'; await refresh(); },
   tab(d) { S.tab = d.t; $('#app').scrollTop = 0; },
   async closesheet() { if (S.sheet === sheetCelebrate) await api('me/seen', 'POST', {}); S.sheet = null; },
   async celebrated() { await api('me/seen', 'POST', {}); S.sheet = null; },
+  async pushtoggle() { if (S.push === 'on') { await pushOff(); toast('Notifications coupées'); } else { await pushOn(); toast('Notifications activées'); } },
+  async pushtest() { const r = await api('push/test', 'POST', {}); toast(r.sent ? 'Notification envoyée' : 'Aucun appareil abonné'); },
+  async notifalert() { S.settings = await api('settings', 'PUT', { notif: { alert: !S.settings.notif.alert } }); },
+  async notifagain() { S.settings = await api('settings', 'PUT', { notif: { remindAgain: !S.settings.notif.remindAgain } }); },
+  async notifdigest(d) { S.settings = await api('settings', 'PUT', { notif: { digest: d.v || null } }); },
   sound() { try { localStorage.setItem('tribu_sound', soundOn() ? '0' : '1'); } catch { /* stockage indisponible */ } beep(); },
   badgesheet(d) { S.F = { id: Number(d.id), title: '', emoji: '🏅' }; S.sheet = sheetBadge; },
   async savebadge() { await api(`kids/${S.F.id}/badges`, 'POST', { title: S.F.title, emoji: S.F.emoji }); S.sheet = null; toast('Badge décerné'); },
@@ -468,4 +511,5 @@ document.addEventListener('click', async (e) => {
   render();
 });
 
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* hors ligne indisponible : sans importance */ });
 refresh().catch((e) => { $('#app').innerHTML = `<p class="mini" style="padding:24px">Impossible de joindre le serveur : ${esc(e.message)}</p>`; });

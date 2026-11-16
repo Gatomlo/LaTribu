@@ -43,6 +43,9 @@ app.get('/', (req, res) => {
   res.set('Cache-Control', 'no-cache').type('html').send(INDEX.replace(/\{\{ROOT\}\}/g, root));
 });
 
+// Rappels et résumés push : un minuteur unique, non bloquant (LATRIBU_PUSH=off pour le couper).
+require('./lib/push').start();
+
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`La Tribu : http://localhost:${PORT}/`));
