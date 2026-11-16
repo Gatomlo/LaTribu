@@ -39,7 +39,7 @@ async function api(path, method = 'GET', body) {
 }
 
 // ---------- État ----------
-const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', sheet: null, F: {} };
+const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {} }, fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -70,8 +70,11 @@ async function loadData() {
     [S.kids, S.review, S.pending] = await Promise.all([api('kids'), api('review'), api('purchases/pending')]);
     if (S.tab === 'tasks' || S.sheet) S.tasks = await api('tasks');
     if (S.tab === 'shops' || S.sheet) [S.rewards, S.accessories] = await Promise.all([api('rewards'), api('accessories')]);
+    if (S.tab === 'set') S.settings = await api('settings');
   } else if (S.view === 'kid') {
     [S.me, S.missions] = await Promise.all([api('me'), api('me/missions')]);
+    const cel = S.me.celebrate; // niveau gagné ou badge obtenu depuis la dernière ouverture
+    if (!S.sheet && (cel.levelUp || cel.badges.length)) { S.sheet = sheetCelebrate; S.fx = true; }
     if (S.tab === 'shop') [S.shop, S.purchases] = await Promise.all([api('me/shop'), api('me/purchases')]);
     if (S.tab === 'me') [S.hist, S.purchases] = await Promise.all([api('me/history'), api('me/purchases')]);
   }
@@ -118,6 +121,7 @@ function render() {
   else if (S.view === 'kid' && S.me) renderKid(a, nav);
 
   if (S.sheet) $('#phone').insertAdjacentHTML('beforeend', `<div class="sheet-bg" data-a="closesheet"><div class="sheet">${S.sheet()}</div></div>`);
+  if (S.fx) { S.fx = false; confetti(); beep(); }
 }
 
 function tabs(list, current, badges = {}) {
@@ -149,7 +153,7 @@ function renderKid(a, nav) {
   const m = S.me;
   nav.innerHTML = tabs([['home', 'home', 'Accueil'], ['missions', 'target', 'Missions'], ['shop', 'bag', 'Magasin'], ['me', 'user', 'Moi']], S.tab);
   const c = PAL[m.palette % PAL.length];
-  const hero = `<div class="hero" style="--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(m)}<div class="sp"><small>${esc(m.name)}</small><div style="font-weight:700;font-size:18px">Niveau ${m.level}</div></div><span class="chip">${ic('flame')}0 j</span></div>
+  const hero = `<div class="hero" style="--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(m)}<div class="sp"><small>${esc(m.name)}</small><div style="font-weight:700;font-size:18px">Niveau ${m.level}</div></div><span class="chip">${ic('flame')}${m.streak} j</span></div>
     <div style="margin-top:16px"><small>Points</small><div class="big">${m.points}</div></div><div class="bar"><i style="width:${m.xpInLevel / m.levelXp * 100}%"></i></div><small>${m.levelXp - m.xpInLevel} XP avant le niveau ${m.level + 1}</small></div>`;
   const M = S.missions;
   if (S.tab === 'home') {
@@ -160,8 +164,8 @@ function renderKid(a, nav) {
     a.innerHTML = `<h2>Missions</h2><div class="sec">Missions ouvertes</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>Premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Aucune mission ouverte pour le moment.'))
       + `<div class="sec">À venir</div>` + (M.upcoming.length ? M.upcoming.map((o) => missionRow({ ...o, label: o.label }, false)).join('') : emptyCard('Rien de prévu les prochains jours.'));
   } else if (S.tab === 'me') {
-    a.innerHTML = hero + `<div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
-    <div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
+    a.innerHTML = hero + `<div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${b.emoji}</i>${esc(b.title)}</div>`).join('')}</div><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
+    <div class="card" style="margin-top:14px;padding:0 14px"><div class="line" data-a="sound"><div class="sp"><b>Sons</b><div class="mini">Petits sons de réussite (coupés par défaut)</div></div>${sw(soundOn())}</div></div><div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
   } else a.innerHTML = kidShop();
 }
 
@@ -181,12 +185,14 @@ function renderParent(a, nav) {
     const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${t.kind === 'plan' ? t.kids.map(kidName).map(esc).join(' + ') + ' · ' : ''}${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
     a.innerHTML = `<div class="row"><h2 class="sp">Tâches</h2><button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div><div class="sec">Planifiées</div>${plan.map(row).join('') || emptyCard('Aucune tâche.')}<div class="sec">Missions ouvertes</div>${open.map(row).join('') || emptyCard('Aucune mission ouverte.')}`;
   } else if (S.tab === 'kids') {
-    a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP</small></div></div>
+    a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div></div>
       <div class="row" style="margin-top:14px"><div class="big sp">${k.points}<small style="font-size:14px;font-weight:500"> pts</small></div><button class="btn sm" style="background:#ffffff2e" data-a="adjsheet" data-id="${k.id}">Ajuster</button></div></div>
-      <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button></div>`; }).join('');
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Décerner un badge</button></div>`; }).join('');
   } else if (S.tab === 'set') {
     a.innerHTML = `<h2>Réglages</h2><div class="sec">Enfants</div><div class="card" style="padding:0 14px">${S.kids.map((k) => `<div class="line">${avatar(k, 38)}<div class="sp"><b>${esc(k.name)}</b><div class="mini">${k.age ? k.age + ' ans · ' : ''}${k.points} pts</div></div><button class="btn ghost sm" data-a="revoke" data-id="${k.id}">Déconnecter</button><button class="btn ko sm" data-a="delkid" data-id="${k.id}">Supprimer</button></div>`).join('')}<div class="line" data-a="newkid" style="color:var(--acc);font-weight:600">${ic('plus')}Ajouter un enfant</div></div>
-    <div class="sec">Compte</div><div class="card" style="padding:0 14px"><div class="line"><div class="sp"><b>${esc(S.session.email)}</b><div class="mini">Compte partagé</div></div></div><div class="line" data-a="chpw"><div class="sp"><b>Changer le mot de passe</b></div></div></div>
+    <div class="sec">Bonus de série</div><div class="card"><p class="mini">Points offerts quand un enfant fait toutes ses missions plusieurs jours de suite (0 = aucun bonus).</p>
+    ${[3, 7, 14, 30].map((m) => `<div class="line" style="border:0;padding:6px 0"><div class="sp"><b>${m} jours</b></div><input id="f_b${m}" type="number" min="0" inputmode="numeric" value="${S.settings.streakBonus[m] ?? ''}" style="width:90px;text-align:center"></div>`).join('')}
+    <button class="btn ghost sm full" style="margin-top:8px" data-a="savebonus">Enregistrer les bonus</button></div><div class="sec">Compte</div><div class="card" style="padding:0 14px"><div class="line"><div class="sp"><b>${esc(S.session.email)}</b><div class="mini">Compte partagé</div></div></div><div class="line" data-a="chpw"><div class="sp"><b>Changer le mot de passe</b></div></div></div>
     <button class="btn ghost full" style="margin-top:18px" data-a="logout">Se déconnecter</button>`;
   } else a.innerHTML = parentShops();
 }
@@ -304,6 +310,24 @@ const sheetDelReward = () => sheetConfirm('Supprimer cette récompense ?', 'Elle
 function sheetAccPrice() {
   return `<h2>${S.F.emoji} ${esc(S.F.title)}</h2><label>Prix en points</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(S.F.price)}"><button class="btn full" style="margin-top:18px" data-a="saveacc">Enregistrer</button>`;
 }
+const soundOn = () => { try { return localStorage.getItem('tribu_sound') === '1'; } catch { return false; } };
+function beep() {
+  if (!soundOn()) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(), t = ctx.currentTime;
+    [523, 659, 784].forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0.0001, t + i * 0.12); g.gain.exponentialRampToValueAtTime(0.15, t + i * 0.12 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.12 + 0.2); o.start(t + i * 0.12); o.stop(t + i * 0.12 + 0.22); });
+  } catch { /* son indisponible : sans importance */ }
+}
+function sheetCelebrate() {
+  const c = S.me.celebrate;
+  return `<div style="text-align:center"><div style="font-size:54px">${c.levelUp ? '🎉' : '🏅'}</div><h2 style="margin-top:6px">${c.levelUp ? `Niveau ${c.levelUp} !` : 'Nouveau badge !'}</h2>
+  ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${b.emoji}</i>${esc(b.title)}</div>`).join('')}</div>` : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>'}
+  <button class="btn full" style="margin-top:18px" data-a="celebrated">Super !</button></div>`;
+}
+const BADGE_ICONS = ['🏅', '💪', '🧠', '❤️', '⭐', '🎯'];
+function sheetBadge() {
+  return `<h2>Décerner un badge · ${esc(kidName(S.F.id))}</h2>${field('f_btitle', 'Titre du badge', S.F.title, 'placeholder="Ex. Super grand frère"')}<label>Icône</label><div class="opts">${BADGE_ICONS.map((i) => `<button class="${S.F.emoji === i ? 'on' : ''}" data-a="fset" data-f="emoji" data-v="${i}">${i}</button>`).join('')}</div><button class="btn full" style="margin-top:18px" data-a="savebadge">Décerner</button>`;
+}
 const rewardBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, price: Number(F.price), limit: F.limit, stock: F.stock === '' ? null : Number(F.stock), shared: !!F.shared, kids: F.kids });
 
 function readInputs() {
@@ -319,6 +343,7 @@ function readInputs() {
   if (g('f_rt')) F.remindAt = g('f_rt').value;
   if (g('f_delta')) F.delta = g('f_delta').value;
   if (g('f_label')) F.label = g('f_label').value;
+  if (g('f_btitle')) F.title = g('f_btitle').value;
   if (g('f_price')) F.price = g('f_price').value;
   if (g('f_stock')) F.stock = g('f_stock').value;
 }
@@ -341,7 +366,12 @@ const A = {
   },
   async logout() { await api('logout', 'POST', {}); S.tab = 'home'; await refresh(); },
   tab(d) { S.tab = d.t; $('#app').scrollTop = 0; },
-  closesheet() { S.sheet = null; },
+  async closesheet() { if (S.sheet === sheetCelebrate) await api('me/seen', 'POST', {}); S.sheet = null; },
+  async celebrated() { await api('me/seen', 'POST', {}); S.sheet = null; },
+  sound() { try { localStorage.setItem('tribu_sound', soundOn() ? '0' : '1'); } catch { /* stockage indisponible */ } beep(); },
+  badgesheet(d) { S.F = { id: Number(d.id), title: '', emoji: '🏅' }; S.sheet = sheetBadge; },
+  async savebadge() { await api(`kids/${S.F.id}/badges`, 'POST', { title: S.F.title, emoji: S.F.emoji }); S.sheet = null; toast('Badge décerné'); },
+  async savebonus() { const b = {}; for (const m of [3, 7, 14, 30]) b[m] = Number(val(`f_b${m}`)); S.settings = await api('settings', 'PUT', { streakBonus: b }); toast('Bonus enregistrés'); },
   fset(d) { const F = S.F; if (d.f === 'weekday') F.days = [Number(d.v)]; else if (d.f === 'points') F.points = d.v; else F[d.f] = d.v;
     if (d.f === 'moment' && d.v && !F.remindAt) F.remindAt = MOMENT_REMIND[d.v];
     if (d.f === 'repeat' && d.v === 'weekly') F.days = [F.days[0] || 1]; },
@@ -375,7 +405,7 @@ const A = {
   async confirmdeltask() { await api(`tasks/${S.F.id}`, 'DELETE'); S.sheet = null; toast('Tâche supprimée'); },
 
   // validation (parent)
-  async approve(d) { const r = await api(`occurrences/${d.id}/approve`, 'POST', {}); confetti(); toast(`+${r.points} pts pour ${kidName(r.kidId)}`); },
+  async approve(d) { const r = await api(`occurrences/${d.id}/approve`, 'POST', {}); confetti(); beep(); toast(`+${r.points} pts pour ${kidName(r.kidId)}${r.awarded.length ? ` · bonus de série +${r.awarded[0].points}` : ''}`); },
   refusesheet(d) { S.F = { id: Number(d.id) }; S.sheet = sheetRefuse; },
   async refuse() { await api(`occurrences/${S.F.id}/refuse`, 'POST', { note: val('f_note') }); S.sheet = null; toast('Renvoyé à l\'enfant'); },
   adjsheet(d) { S.F = { id: Number(d.id), delta: '', label: '' }; S.sheet = sheetAdjust; },
@@ -417,7 +447,7 @@ const A = {
   async equip(d) { await api(`me/accessories/${d.id}/equip`, 'POST', {}); },
 
   // enfant
-  async done(d) { await api(`occurrences/${d.id}/done`, 'POST', {}); confetti(); toast('Envoyé aux parents pour validation'); },
+  async done(d) { await api(`occurrences/${d.id}/done`, 'POST', {}); confetti(); beep(); toast('Envoyé aux parents pour validation'); },
   async claim(d) { await api(`occurrences/${d.id}/claim`, 'POST', {}); toast('Mission ajoutée à ta liste'); },
 };
 
