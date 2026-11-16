@@ -101,6 +101,15 @@ Calquée sur le Cabas (`listes-courses`) pour un montage dans **node-gateway** :
 4. Ludique : niveaux/XP, séries et bonus, badges, célébrations, sons optionnels. ✔
 5. Notifications Web Push planifiées (clés VAPID en base, minuteur unique non bloquant), PWA installable. ✔ (à valider sur téléphone)
 
+## 7 bis. Évolutions réalisées après la première livraison
+- **Photo preuve** : réglage global (désactivé par défaut) + option par tâche ; exigée seulement si les deux sont actifs ; photo purgée 3, 7 ou 30 jours après la décision.
+- **Changement de PIN** par un parent (déconnecte les téléphones de l'enfant).
+- **Statistiques par semaine** (points gagnés/dépensés, missions faites, taux de réussite, comparaison à la semaine précédente) pour les parents et pour l'enfant.
+- **Bibliothèque de tâches types** (16 modèles livrés, modifiables, enregistrement de ses propres modèles).
+- **Validité des récompenses** : dates de début et de fin, activation manuelle ; invisibles pour l'enfant quand expirées ou désactivées.
+- **File d'attente hors connexion** : une mission déclarée sans réseau est envoyée dès le retour de la connexion ; l'enfant retrouve sa dernière vue.
+- **Durcissement** après audit de sécurité (voir CLAUDE.md).
+
 ## 8. Points à confirmer
 - Solde plancher à 0 (hypothèse retenue) ou négatif possible après pénalité ?
 - Rappels : un seul par tâche (hypothèse) ou possibilité d'en cumuler ?

@@ -17,6 +17,9 @@ const P = {
   flame: '<path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-10z"/>',
   bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  chevl: '<polyline points="15 18 9 12 15 6"/>',
+  chevr: '<polyline points="9 18 15 12 9 6"/>',
 };
 const ic = (n) => `<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`;
 const PAL = [['#14b8a6', '#0ea5e9'], ['#7c5cff', '#d946ef'], ['#f59e0b', '#ef4444'], ['#3b82f6', '#6366f1'], ['#ec4899', '#f43f5e'], ['#22c55e', '#14b8a6']];
@@ -28,18 +31,25 @@ const ICONS = ['🛏️', '🍽️', '📚', '🧹', '🗑️', '🐶', '🧺', 
 
 // ---------- Réseau ----------
 async function api(path, method = 'GET', body) {
-  const res = await fetch('api/' + path, {
-    method,
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch('api/' + path, {
+      method,
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    S.offline = true;
+    const e = new Error('Pas de connexion.'); e.network = true; throw e;
+  }
+  if (S.offline) { S.offline = false; setTimeout(() => qFlush(), 0); } // le réseau est revenu : envoi des missions en attente
   const data = await res.json().catch(() => ({}));
   if (!res.ok) { const e = new Error(data.error || 'Erreur réseau.'); e.status = res.status; throw e; }
   return data;
 }
 
 // ---------- État ----------
-const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true } }, push: 'unknown', fx: false, sheet: null, F: {} };
+const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -59,8 +69,8 @@ const dl = (ts) => {
   return n <= 0 ? "Aujourd'hui" : n === 1 ? 'Hier' : new Date(ts).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' });
 };
 
-const avatar = (k, s = 48) => { const c = PAL[k.palette % PAL.length]; return `<div class="av" style="--s:${s}px;--c1:${c[0]};--c2:${c[1]}">${esc(k.name[0].toUpperCase())}${k.accessory ? `<em>${k.accessory}</em>` : ''}</div>`; };
-const heroAvatar = (k, s = 52) => `<div class="av" style="--s:${s}px;--c1:#ffffff40;--c2:#ffffff22">${esc(k.name[0].toUpperCase())}${k.accessory ? `<em>${k.accessory}</em>` : ''}</div>`;
+const avatar = (k, s = 48) => { const c = PAL[k.palette % PAL.length]; return `<div class="av" style="--s:${s}px;--c1:${c[0]};--c2:${c[1]}">${esc(k.name[0].toUpperCase())}${k.accessory ? `<em>${esc(k.accessory)}</em>` : ''}</div>`; };
+const heroAvatar = (k, s = 52) => `<div class="av" style="--s:${s}px;--c1:#ffffff40;--c2:#ffffff22">${esc(k.name[0].toUpperCase())}${k.accessory ? `<em>${esc(k.accessory)}</em>` : ''}</div>`;
 const logoBadge = () => `<div class="av" style="--s:64px;--c1:#6d5efc;--c2:#a78bfa;margin:0 auto 14px;border-radius:20px">${ic('home').replace('class="i"', 'class="i" style="width:32px;height:32px"')}</div>`;
 const kidName = (id) => (S.kids.find((k) => k.id === id) || { name: '?' }).name;
 
@@ -75,12 +85,18 @@ async function loadData() {
     [S.me, S.missions] = await Promise.all([api('me'), api('me/missions')]);
     const cel = S.me.celebrate; // niveau gagné ou badge obtenu depuis la dernière ouverture
     if (!S.sheet && (cel.levelUp || cel.badges.length)) { S.sheet = sheetCelebrate; S.fx = true; }
+    applyQueued(); kidCacheSave();
     if (S.tab === 'shop') [S.shop, S.purchases] = await Promise.all([api('me/shop'), api('me/purchases')]);
     if (S.tab === 'me') [S.hist, S.purchases] = await Promise.all([api('me/history'), api('me/purchases')]);
   }
 }
 async function refresh() {
-  S.session = await api('session');
+  try { S.session = await api('session'); } catch (e) {
+    const cache = e.network && kidCacheLoad(); // hors connexion : l'enfant retrouve sa dernière vue
+    if (!cache) throw e;
+    S.session = cache.session; S.view = 'kid'; S.me = cache.me; S.missions = cache.missions; applyQueued(); render();
+    return;
+  }
   if (S.session.setup) S.view = 'setup';
   else if (S.session.role === 'parent') S.view = 'parent';
   else if (S.session.role === 'kid') S.view = 'kid';
@@ -88,6 +104,7 @@ async function refresh() {
   await loadData();
   render();
   if (S.view === 'parent' || S.view === 'kid') pushRefresh();
+  if (S.view === 'kid') qFlush();
 }
 
 // ---------- Rendu ----------
@@ -136,7 +153,7 @@ function missionRow(o, interactive) {
   const st = o.status, can = interactive && (st === 'todo' || st === 'refused');
   const icon = st === 'done' ? ic('check') : st === 'wait' ? ic('clock') : '';
   return `<div class="task ${st === 'refused' ? '' : st}"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b>
-    <small>${esc(o.label)}${o.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(o.remindAt)}</span>` : ''}</small>
+    <small>${esc(o.label)}${o.photoRequired && (st === 'todo' || st === 'refused') ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('camera')}Photo</span>` : ''}${o.queued ? '<span class="chip" style="padding:2px 7px;font-size:11px">En attente d\'envoi</span>' : ''}${o.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(o.remindAt)}</span>` : ''}</small>
     ${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}${st === 'refused' ? `<div class="mini" style="margin-top:3px;color:var(--ko)">Refusé${o.note ? ' : ' + esc(o.note) : ''}. À refaire.</div>` : ''}</div>
     <span class="pts">+${o.points}</span>${interactive ? `<button class="chk ${st}" data-a="done" data-id="${o.id}" ${can ? '' : 'disabled'}>${icon}</button>` : ''}</div>`;
 }
@@ -159,13 +176,13 @@ function renderKid(a, nav) {
   const M = S.missions;
   if (S.tab === 'home') {
     const done = M.today.filter((o) => o.status === 'done').length;
-    a.innerHTML = hero + pushBanner() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
+    a.innerHTML = hero + offlineBanner() + pushBanner() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
       : '<div class="card mini" style="margin-top:14px;text-align:center">Rien de prévu aujourd\'hui. Jette un œil aux missions ouvertes.</div>');
   } else if (S.tab === 'missions') {
     a.innerHTML = `<h2>Missions</h2><div class="sec">Missions ouvertes</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>Premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Aucune mission ouverte pour le moment.'))
       + `<div class="sec">À venir</div>` + (M.upcoming.length ? M.upcoming.map((o) => missionRow({ ...o, label: o.label }, false)).join('') : emptyCard('Rien de prévu les prochains jours.'));
   } else if (S.tab === 'me') {
-    a.innerHTML = hero + `<div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${b.emoji}</i>${esc(b.title)}</div>`).join('')}</div><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
+    a.innerHTML = hero + `<div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div><button class="btn ghost full" style="margin-top:16px" data-a="stats">Ma semaine en chiffres</button><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
     <div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Voir un exemple de rappel</button>' : ''}</div><div class="card" style="margin-top:14px;padding:0 14px"><div class="line" data-a="sound"><div class="sp"><b>Sons</b><div class="mini">Petits sons de réussite (coupés par défaut)</div></div>${sw(soundOn())}</div></div><div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
   } else a.innerHTML = kidShop();
 }
@@ -179,7 +196,7 @@ function renderParent(a, nav) {
   }
   if (S.tab === 'home') {
     a.innerHTML = `<h2>À valider</h2><p class="mini" style="margin-top:2px">${S.review.length + S.pending.length ? 'Des décisions t\'attendent.' : 'Rien à valider pour le moment.'}</p>${pushBanner()}<div class="sec">Missions déclarées (${S.review.length})</div>` +
-      (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${esc(o.kidName)} · ${dl(o.doneAt)}</small></div><span class="pts">+${o.points}</span></div>
+      (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${esc(o.kidName)} · ${dl(o.doneAt)}</small></div>${o.hasPhoto ? `<img class="thumb" src="api/occurrences/${o.id}/photo" alt="Photo" data-a="viewphoto" data-id="${o.id}">` : ''}<span class="pts">+${o.points}</span></div>
       <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusesheet" data-id="${o.id}">Refuser</button><button class="btn ok sp" data-a="approve" data-id="${o.id}">Valider</button></div>`).join('') || emptyCard('Aucune mission en attente.')) + purchasesSection();
   } else if (S.tab === 'tasks') {
     const plan = S.tasks.filter((t) => t.kind === 'plan'), open = S.tasks.filter((t) => t.kind === 'open');
@@ -188,15 +205,20 @@ function renderParent(a, nav) {
   } else if (S.tab === 'kids') {
     a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div></div>
       <div class="row" style="margin-top:14px"><div class="big sp">${k.points}<small style="font-size:14px;font-weight:500"> pts</small></div><button class="btn sm" style="background:#ffffff2e" data-a="adjsheet" data-id="${k.id}">Ajuster</button></div></div>
-      <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Décerner un badge</button></div>`; }).join('');
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="stats" data-id="${k.id}">Stats</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Badge</button></div>`; }).join('');
   } else if (S.tab === 'set') {
-    a.innerHTML = `<h2>Réglages</h2><div class="sec">Enfants</div><div class="card" style="padding:0 14px">${S.kids.map((k) => `<div class="line">${avatar(k, 38)}<div class="sp"><b>${esc(k.name)}</b><div class="mini">${k.age ? k.age + ' ans · ' : ''}${k.points} pts</div></div><button class="btn ghost sm" data-a="revoke" data-id="${k.id}">Déconnecter</button><button class="btn ko sm" data-a="delkid" data-id="${k.id}">Supprimer</button></div>`).join('')}<div class="line" data-a="newkid" style="color:var(--acc);font-weight:600">${ic('plus')}Ajouter un enfant</div></div>
+    a.innerHTML = `<h2>Réglages</h2><div class="sec">Enfants</div><div class="card" style="padding:0 14px">${S.kids.map((k) => `<div class="line">${avatar(k, 38)}<div class="sp"><b>${esc(k.name)}</b><div class="mini">${k.age ? k.age + ' ans · ' : ''}${k.points} pts</div></div><button class="btn ghost sm" data-a="managekid" data-id="${k.id}">Gérer</button></div>`).join('')}<div class="line" data-a="newkid" style="color:var(--acc);font-weight:600">${ic('plus')}Ajouter un enfant</div></div>
     <div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}
     <div class="line" data-a="notifalert">${ic('check')}<div class="sp"><b>À chaque mission ou demande</b><div class="mini">Alerte immédiate à valider</div></div>${sw(S.settings.notif.alert)}</div>
     <div class="line" data-a="notifagain">${ic('clock')}<div class="sp"><b>Second rappel aux enfants</b><div class="mini">1 h après l'heure si la tâche n'est pas faite</div></div>${sw(S.settings.notif.remindAgain)}</div>
     <div class="line" style="border:0;padding-bottom:6px">${ic('bell')}<div class="sp"><b>Rappel quotidien de validation</b><div class="mini">S'il reste des éléments en attente</div></div></div>
     <div class="opts" style="padding-bottom:14px">${[['', 'Aucun'], ['19:00', '19:00'], ['20:00', '20:00'], ['21:00', '21:00']].map(([v, l]) => `<button class="${(S.settings.notif.digest || '') === v ? 'on' : ''}" data-a="notifdigest" data-v="${v}">${l}</button>`).join('')}</div>
     ${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Envoyer une notification de test</button>' : ''}</div>
+    <div class="sec">Preuve par photo</div><div class="card" style="padding:0 14px">
+    <div class="line" data-a="photoglobal">${ic('camera')}<div class="sp"><b>Demander des photos</b><div class="mini">Interrupteur général : désactivé, aucune photo n'est demandée</div></div>${sw(S.settings.photo.enabled)}</div>
+    <div class="line" style="border:0;padding-bottom:6px"><div class="sp"><b>Conservation</b><div class="mini">Photo supprimée après la décision</div></div></div>
+    <div class="opts" style="padding-bottom:14px">${[[3, '3 jours'], [7, '7 jours'], [30, '30 jours']].map(([v, l]) => `<button class="${S.settings.photo.keepDays === v ? 'on' : ''}" data-a="photokeep" data-v="${v}">${l}</button>`).join('')}</div></div>
+    <p class="mini" style="margin:8px 2px 0">Dans une tâche, « Photo demandée » active l'exigence pour cette tâche seulement.</p>
     <div class="sec">Bonus de série</div><div class="card"><p class="mini">Points offerts quand un enfant fait toutes ses missions plusieurs jours de suite (0 = aucun bonus).</p>
     ${[3, 7, 14, 30].map((m) => `<div class="line" style="border:0;padding:6px 0"><div class="sp"><b>${m} jours</b></div><input id="f_b${m}" type="number" min="0" inputmode="numeric" value="${S.settings.streakBonus[m] ?? ''}" style="width:90px;text-align:center"></div>`).join('')}
     <button class="btn ghost sm full" style="margin-top:8px" data-a="savebonus">Enregistrer les bonus</button></div><div class="sec">Compte</div><div class="card" style="padding:0 14px"><div class="line"><div class="sp"><b>${esc(S.session.email)}</b><div class="mini">Compte partagé</div></div></div><div class="line" data-a="chpw"><div class="sp"><b>Changer le mot de passe</b></div></div></div>
@@ -225,7 +247,7 @@ function sheetPw() {
 }
 function sheetTask() {
   const F = S.F, open = F.kind === 'open', ks = S.kids;
-  return `<h2>${F.id ? 'Modifier la tâche' : 'Nouvelle tâche'}</h2>${field('f_title', 'Titre', F.title, 'placeholder="Ex. Arroser les plantes"')}
+  return `<h2>${F.id ? 'Modifier la tâche' : 'Nouvelle tâche'}</h2>${F.id ? '' : `<button class="btn ghost sm full" style="margin-top:10px" data-a="tplpicker">Choisir un modèle de tâche</button>`}${field('f_title', 'Titre', F.title, 'placeholder="Ex. Arroser les plantes"')}
   <label>Icône</label><div class="opts">${ICONS.map((i) => `<button class="${F.icon === i ? 'on' : ''}" data-a="fset" data-f="icon" data-v="${i}">${i}</button>`).join('')}</div>
   <label>Description (facultatif)</label><textarea id="f_desc" rows="2" placeholder="Ex. Toutes les plantes du salon">${esc(F.description)}</textarea>
   <label>Points gagnés (valeur libre)</label><input id="f_pts" class="ptsin" type="number" inputmode="numeric" value="${esc(F.points)}" placeholder="0">
@@ -238,9 +260,11 @@ function sheetTask() {
   ${F.repeat === 'monthly' ? field('f_md', 'Jour du mois', F.monthDay, 'type="number" min="1" max="31"') : ''}
   ${F.repeat === 'date' ? field('f_date', 'Date', F.date, 'type="date"') : ''}
   <label>Moment de la journée</label>${chips('fset', 'moment', [...MOMENTS, ['', 'Dans la journée']], (v) => (F.moment || '') === v)}`}
+  <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b><div class="mini">${S.settings.photo.enabled ? 'L\'enfant joint une photo en déclarant la mission' : 'Sans effet tant que les photos sont coupées (Réglages)'}</div></div>${sw(F.photoRequired)}</div>
   <label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
   <input id="f_rt" type="time" value="${esc(F.remindAt)}" style="margin-top:8px">
   <button class="btn full" style="margin-top:18px" data-a="savetask">${F.id ? 'Enregistrer' : 'Créer la tâche'}</button>
+  ${F.kind === 'plan' && F.repeat !== 'date' ? '<button class="btn ghost sm full" style="margin-top:8px" data-a="savetpl">Enregistrer comme modèle</button>' : ''}
   ${F.id ? '<button class="btn ko full" style="margin-top:8px" data-a="deltask">Supprimer la tâche</button>' : ''}`;
 }
 function sheetRefuse() {
@@ -282,7 +306,7 @@ function kidShop() {
   const seg = `<div class="seg"><button class="${S.shopSeg === 'rew' ? 'on' : ''}" data-a="shopseg" data-v="rew">Récompenses</button><button class="${S.shopSeg === 'acc' ? 'on' : ''}" data-a="shopseg" data-v="acc">Accessoires</button></div>`;
   const head = `<div class="row"><h2 class="sp">Magasin</h2><span class="pts" style="font-size:15px">${K.points} pts</span></div>${seg}`;
   if (S.shopSeg === 'acc') {
-    return head + `<p class="mini" style="margin-top:12px">Payés avec les mêmes points que les récompenses, sans validation.</p><div class="grid2">${sh.accessories.map((x) => `<div class="item"><div class="e">${x.emoji}</div><b>${esc(x.title)}</b><small>${x.owned ? 'Débloqué' : 'Accessoire'}</small>${x.owned
+    return head + `<p class="mini" style="margin-top:12px">Payés avec les mêmes points que les récompenses, sans validation.</p><div class="grid2">${sh.accessories.map((x) => `<div class="item"><div class="e">${esc(x.emoji)}</div><b>${esc(x.title)}</b><small>${x.owned ? 'Débloqué' : 'Accessoire'}</small>${x.owned
       ? `<button class="btn sm ghost" data-a="equip" data-id="${x.equipped ? 'none' : x.id}">${x.equipped ? 'Porté' : 'Équiper'}</button>`
       : `<button class="btn sm" data-a="buyacc" data-id="${x.id}" ${K.points < x.price ? 'disabled' : ''}>${x.price} pts</button>`}</div>`).join('')}</div>`;
   }
@@ -294,10 +318,10 @@ function kidShop() {
 const purchasesSection = () => `<div class="sec">Demandes d'achat (${S.pending.length})</div>` + (S.pending.map((p) => `<div class="task"><div class="ic">${esc(p.icon)}</div><div class="sp"><b>${esc(p.title)}</b><small>${esc(p.kidName)} · ${p.price} pts réservés</small></div></div>
   <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusebuy" data-id="${p.id}">Refuser</button><button class="btn ok sp" data-a="givebuy" data-id="${p.id}">Remis</button></div>`).join('') || emptyCard('Aucune demande.'));
 function parentShops() {
-  const row = (r, k) => `<div class="task" data-a="editreward" data-id="${r.id}"><div class="ic">${esc(r.icon)}</div><div class="sp"><b>${esc(r.title)}</b><small>${[LIMITS[r.limit], stockLabel(r.left[k.id], r.shared)].filter(Boolean).join(' · ') || 'Sans limite'}</small>${r.description ? `<div class="mini" style="margin-top:3px">${esc(r.description)}</div>` : ''}</div><span class="pts">${r.price} pts</span></div>`;
+  const row = (r, k) => `<div class="task" data-a="editreward" data-id="${r.id}"><div class="ic">${esc(r.icon)}</div><div class="sp"><b>${esc(r.title)}</b><small>${[AVAIL[r.availability], LIMITS[r.limit], stockLabel(r.left[k.id], r.shared), r.validUntil ? `Jusqu'au ${frd(r.validUntil)}` : ''].filter(Boolean).join(' · ') || 'Sans limite'}</small>${r.description ? `<div class="mini" style="margin-top:3px">${esc(r.description)}</div>` : ''}</div><span class="pts">${r.price} pts</span></div>`;
   return `<div class="row"><h2 class="sp">Magasins</h2><button class="btn sm" data-a="newreward">${ic('plus')}Ajouter</button></div>`
     + S.kids.map((k) => `<div class="sec">${esc(k.name)}</div>${S.rewards.filter((r) => r.kids.includes(k.id)).map((r) => row(r, k)).join('') || emptyCard('Aucune récompense.')}`).join('')
-    + `<div class="sec">Accessoires (communs)</div>${S.accessories.map((x) => `<div class="task" data-a="accprice" data-id="${x.id}"><div class="ic">${x.emoji}</div><div class="sp"><b>${esc(x.title)}</b></div><span class="pts">${x.price} pts</span></div>`).join('')}`;
+    + `<div class="sec">Accessoires (communs)</div>${S.accessories.map((x) => `<div class="task" data-a="accprice" data-id="${x.id}"><div class="ic">${esc(x.emoji)}</div><div class="sp"><b>${esc(x.title)}</b></div><span class="pts">${x.price} pts</span></div>`).join('')}`;
 }
 function sheetReward() {
   const F = S.F, ks = S.kids;
@@ -307,6 +331,8 @@ function sheetReward() {
   <label>Prix en points (valeur libre)</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(F.price)}" placeholder="0">
   <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}${ks.length > 1 ? `<button class="${F.kids.length === ks.length ? 'on' : ''}" data-a="fall">Tous</button>` : ''}</div>
   <label>Limite par enfant</label>${chips('fset', 'limit', [['none', 'Aucune'], ['day', '1 par jour'], ['week', '1 par semaine'], ['month', '1 par mois']], (v) => F.limit === v)}
+  <label>Validité (facultatif)</label><div class="row" style="gap:8px"><div class="sp"><div class="mini">Valable à partir du</div><input id="f_vfrom" type="date" value="${esc(F.validFrom)}"></div><div class="sp"><div class="mini">jusqu'au</div><input id="f_vuntil" type="date" value="${esc(F.validUntil)}"></div></div>
+  <div class="line" data-a="ractive" style="border:0;padding-bottom:0"><div class="sp"><b>Active</b><div class="mini">${F.active ? 'Visible dans le magasin des enfants (si dans ses dates)' : 'Cachée aux enfants'}</div></div>${sw(F.active)}</div>
   ${field('f_stock', 'Stock (facultatif)', F.stock, 'type="number" min="1" inputmode="numeric" placeholder="Illimité"')}
   ${F.kids.length > 1 ? `<div class="line" data-a="fshared" style="border:0;padding-bottom:0;${F.stock === '' ? 'opacity:.45' : ''}"><div class="sp"><b>Stock partagé entre les enfants</b><div class="mini">${F.shared && F.stock !== '' ? 'Un seul stock commun : le premier qui l\'achète l\'épuise pour les autres.' : 'Chaque enfant a son propre stock.'}</div></div>${sw(F.shared && F.stock !== '')}</div>` : ''}
   ${F.id ? '<p class="mini" style="margin-top:8px">Modifier le stock le réinitialise pour les enfants concernés.</p>' : ''}
@@ -315,7 +341,7 @@ function sheetReward() {
 }
 const sheetDelReward = () => sheetConfirm('Supprimer cette récompense ?', 'Elle disparaît du magasin des enfants. Les demandes déjà faites restent dans l\'historique.', 'confirmdelreward', 'Supprimer la récompense');
 function sheetAccPrice() {
-  return `<h2>${S.F.emoji} ${esc(S.F.title)}</h2><label>Prix en points</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(S.F.price)}"><button class="btn full" style="margin-top:18px" data-a="saveacc">Enregistrer</button>`;
+  return `<h2>${esc(S.F.emoji)} ${esc(S.F.title)}</h2><label>Prix en points</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(S.F.price)}"><button class="btn full" style="margin-top:18px" data-a="saveacc">Enregistrer</button>`;
 }
 // ---------- Notifications push ----------
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -391,14 +417,105 @@ function beep() {
 function sheetCelebrate() {
   const c = S.me.celebrate;
   return `<div style="text-align:center"><div style="font-size:54px">${c.levelUp ? '🎉' : '🏅'}</div><h2 style="margin-top:6px">${c.levelUp ? `Niveau ${c.levelUp} !` : 'Nouveau badge !'}</h2>
-  ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${b.emoji}</i>${esc(b.title)}</div>`).join('')}</div>` : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>'}
+  ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div>` : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>'}
   <button class="btn full" style="margin-top:18px" data-a="celebrated">Super !</button></div>`;
 }
 const BADGE_ICONS = ['🏅', '💪', '🧠', '❤️', '⭐', '🎯'];
 function sheetBadge() {
   return `<h2>Décerner un badge · ${esc(kidName(S.F.id))}</h2>${field('f_btitle', 'Titre du badge', S.F.title, 'placeholder="Ex. Super grand frère"')}<label>Icône</label><div class="opts">${BADGE_ICONS.map((i) => `<button class="${S.F.emoji === i ? 'on' : ''}" data-a="fset" data-f="emoji" data-v="${i}">${i}</button>`).join('')}</div><button class="btn full" style="margin-top:18px" data-a="savebadge">Décerner</button>`;
 }
-const rewardBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, price: Number(F.price), limit: F.limit, stock: F.stock === '' ? null : Number(F.stock), shared: !!F.shared, kids: F.kids });
+const rewardBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, price: Number(F.price), limit: F.limit, stock: F.stock === '' ? null : Number(F.stock), shared: !!F.shared, kids: F.kids, validFrom: F.validFrom || null, validUntil: F.validUntil || null, active: !!F.active });
+
+// ---------- Réglages d'affichage de la validité ----------
+const AVAIL = { off: 'Désactivée', expired: 'Expirée', upcoming: 'Pas encore ouverte', ok: '' };
+const frd = (d) => d.split('-').reverse().slice(0, 2).join('/'); // AAAA-MM-JJ -> JJ/MM
+const addDaysJs = (d, n) => new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) + n * 864e5).toISOString().slice(0, 10);
+
+// ---------- Photo preuve ----------
+// Photo prise ou choisie, réduite (1024 px, JPEG, < 450 Ko) avant envoi.
+function pickPhoto() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.setAttribute('capture', 'environment');
+    input.addEventListener('change', async () => {
+      const f = input.files && input.files[0];
+      if (!f) return resolve(null);
+      try { resolve(await shrink(f)); } catch { toast('Photo illisible, réessaie.'); resolve(null); }
+    });
+    input.addEventListener('cancel', () => resolve(null));
+    input.click();
+  });
+}
+async function shrink(file) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  for (const q of [0.7, 0.55, 0.4, 0.3]) { const url = cv.toDataURL('image/jpeg', q); if (url.length * 0.75 < 450 * 1024) return url; }
+  throw new Error('photo trop lourde');
+}
+const sheetPhoto = () => `<h2>Photo de la mission</h2><img class="photo-big" src="api/occurrences/${S.F.id}/photo" alt="Photo preuve">`;
+
+// ---------- Statistiques de la semaine ----------
+function sheetStats() {
+  const st = S.F.stats, parent = S.view === 'parent', name = parent ? kidName(S.F.id) : S.me.name;
+  const max = Math.max(1, ...st.days.map((d) => Math.max(d.earned, d.spent)));
+  const diff = (cur, prev) => (cur === prev ? '' : `<span class="mini">${cur > prev ? '+' : ''}${cur - prev} vs semaine précédente</span>`);
+  return `<h2>Semaine · ${esc(name)}</h2>
+  <div class="row" style="margin-top:10px"><button class="btn ghost sm" data-a="statnav" data-dir="-1" aria-label="Semaine précédente">${ic('chevl')}</button><div class="sp" style="text-align:center"><b>${frd(st.weekStart)} au ${frd(st.weekEnd)}</b>${st.isCurrent ? '<div class="mini">Cette semaine</div>' : ''}</div><button class="btn ghost sm" data-a="statnav" data-dir="1" aria-label="Semaine suivante" ${st.isCurrent ? 'disabled' : ''}>${ic('chevr')}</button></div>
+  <div class="chart">${st.days.map((d, i) => `<div class="col ${d.future ? 'future' : ''}"><div class="pair"><i class="e" style="height:${d.earned / max * 100}%"></i><i class="s" style="height:${d.spent / max * 100}%"></i></div><small>${DAYS[i][0]}</small></div>`).join('')}</div>
+  <p class="mini" style="margin-top:6px"><span style="color:var(--acc)">■</span> gagnés <span style="color:var(--ko);margin-left:8px">■</span> dépensés</p>
+  <div class="tiles"><div class="tile"><b>${st.totals.earned}</b>points gagnés<br>${diff(st.totals.earned, st.prev.earned)}</div><div class="tile"><b>${st.totals.spent}</b>points dépensés<br>${diff(st.totals.spent, st.prev.spent)}</div>
+  <div class="tile"><b>${st.totals.done}/${st.totals.total}</b>missions faites</div><div class="tile"><b>${st.totals.rate == null ? '–' : st.totals.rate + ' %'}</b>de réussite<br>${st.prev.rate != null && st.totals.rate != null ? diff(st.totals.rate, st.prev.rate).replace('vs semaine précédente', 'pts vs préc.') : ''}</div></div>
+  <p class="mini" style="margin-top:12px">${ic('flame')} Série en cours : ${st.streak} jour${st.streak > 1 ? 's' : ''}</p>`;
+}
+
+// ---------- Bibliothèque de tâches types ----------
+function sheetTemplates() {
+  return `<h2>Modèles de tâches</h2><p class="mini" style="margin-top:4px">Touche un modèle pour préremplir la tâche.</p><div style="margin-top:8px">${S.templates.map((t) => `<div class="line"><div style="font-size:24px">${esc(t.icon)}</div><button class="sp" style="text-align:left" data-a="usetpl" data-id="${t.id}"><b style="font-size:14px">${esc(t.title)}</b><div class="mini">${esc(t.label)}${t.moment ? ' · ' + MOMENTS.find((m) => m[0] === t.moment)[1] : ''}</div></button><span class="pts">${t.points}</span><button class="btn ghost sm" data-a="deltpl" data-id="${t.id}" aria-label="Supprimer le modèle">×</button></div>`).join('') || '<p class="mini" style="padding:16px 0">Aucun modèle.</p>'}</div><button class="btn ghost full" style="margin-top:12px" data-a="tplback">Retour</button>`;
+}
+
+// ---------- Gérer un enfant (PIN, appareils, suppression) ----------
+function sheetManageKid() {
+  const k = S.kids.find((x) => x.id === S.F.id);
+  return `<h2>${esc(k.name)}</h2><label>Nouveau code PIN (4 chiffres)</label><input id="f_newpin" inputmode="numeric" maxlength="4" placeholder="••••" value="${esc(S.F.newpin || '')}">
+  <button class="btn full" style="margin-top:10px" data-a="savepin">Changer le PIN</button><p class="mini" style="margin-top:6px">Les téléphones de l'enfant devront ressaisir le nouveau code.</p>
+  <div class="sec">Autres actions</div><button class="btn ghost full" data-a="revoke" data-id="${k.id}">Déconnecter ses appareils</button><button class="btn ko full" style="margin-top:8px" data-a="delkid" data-id="${k.id}">Supprimer ${esc(k.name)}</button>`;
+}
+
+// ---------- Hors connexion : file d'attente des missions « faites » et dernière vue de l'enfant ----------
+const QKEY = 'tribu_queue', CKEY = 'tribu_kid_cache';
+const qLoad = () => { try { return JSON.parse(localStorage.getItem(QKEY) || '[]'); } catch { return []; } };
+const qSave = (q) => { try { localStorage.setItem(QKEY, JSON.stringify(q)); } catch { toast('Stockage plein : la mission ne peut pas être gardée hors connexion.'); } };
+const kidCacheSave = () => { try { localStorage.setItem(CKEY, JSON.stringify({ session: S.session, me: S.me, missions: S.missions })); } catch { /* stockage indisponible */ } };
+const kidCacheLoad = () => { try { return JSON.parse(localStorage.getItem(CKEY) || 'null'); } catch { return null; } };
+function applyQueued() {
+  const ids = new Set(qLoad().map((i) => i.occ));
+  for (const o of S.missions.today) if (ids.has(o.id) && o.status !== 'done') { o.status = 'wait'; o.queued = true; }
+}
+let flushing = false;
+async function qFlush() {
+  if (flushing || S.view !== 'kid' || !S.session || !S.session.kid) return;
+  flushing = true;
+  let sent = 0;
+  try {
+    const mine = qLoad().filter((i) => i.kid === S.session.kid.id), rest = []; // les envois d'un autre profil sont abandonnés
+    for (const [idx, item] of mine.entries()) {
+      try { await api(item.path, 'POST', item.body); sent++; } catch (e) {
+        if (e.network) { rest.push(...mine.slice(idx)); break; }
+        /* refusé par le serveur (déjà déclarée...) : abandonné */
+      }
+    }
+    qSave(rest);
+  } finally { flushing = false; }
+  if (sent) { toast(`${sent} mission${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''} aux parents`); try { await loadData(); } catch { /* réessai plus tard */ } render(); }
+}
+function offlineBanner() {
+  const n = qLoad().length;
+  if (!S.offline && !n) return '';
+  return `<div class="card mini" style="margin-top:12px">${S.offline ? 'Hors connexion. ' : ''}${n ? `${n} mission${n > 1 ? 's' : ''} en attente d'envoi : elle${n > 1 ? 's partiront' : ' partira'} dès le retour du réseau.` : 'Les informations seront à jour dès le retour du réseau.'}</div>`;
+}
+window.addEventListener('online', () => qFlush());
+setInterval(() => { if (qLoad().length) qFlush(); }, 30000);
 
 function readInputs() {
   const g = (id) => document.getElementById(id), F = S.F;
@@ -414,12 +531,15 @@ function readInputs() {
   if (g('f_delta')) F.delta = g('f_delta').value;
   if (g('f_label')) F.label = g('f_label').value;
   if (g('f_btitle')) F.title = g('f_btitle').value;
+  if (g('f_vfrom')) F.validFrom = g('f_vfrom').value;
+  if (g('f_vuntil')) F.validUntil = g('f_vuntil').value;
+  if (g('f_newpin')) F.newpin = g('f_newpin').value;
   if (g('f_price')) F.price = g('f_price').value;
   if (g('f_stock')) F.stock = g('f_stock').value;
 }
 const val = (id) => (document.getElementById(id) || {}).value || '';
-const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '' });
-const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null });
+const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false });
+const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired });
 
 // ---------- Actions ----------
 const A = {
@@ -434,7 +554,7 @@ const A = {
     const pin = S.pin; S.pin = '';
     try { await api(`kids/${S.kidId}/login`, 'POST', { pin }); S.tab = 'home'; await refresh(); toast('Session ouverte sur ce téléphone'); } catch (e) { toast(e.message); }
   },
-  async logout() { try { await pushOff(); } catch { /* sans importance */ } await api('logout', 'POST', {}); S.tab = 'home'; await refresh(); },
+  async logout() { try { localStorage.removeItem(CKEY); } catch { /* sans importance */ } try { await pushOff(); } catch { /* sans importance */ } await api('logout', 'POST', {}); S.tab = 'home'; await refresh(); },
   tab(d) { S.tab = d.t; $('#app').scrollTop = 0; },
   async closesheet() { if (S.sheet === sheetCelebrate) await api('me/seen', 'POST', {}); S.sheet = null; },
   async celebrated() { await api('me/seen', 'POST', {}); S.sheet = null; },
@@ -471,7 +591,7 @@ const A = {
   newtask() { S.F = blankTask(); S.sheet = sheetTask; },
   edittask(d) {
     const t = S.tasks.find((x) => x.id === Number(d.id));
-    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '' };
+    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired };
     S.sheet = sheetTask;
   },
   async savetask() {
@@ -497,11 +617,42 @@ const A = {
   },
   hseg(d) { S.F.hs = d.v; },
 
+  // photo, stats, modèles, gestion d'un enfant
+  viewphoto(d) { S.F = { id: Number(d.id) }; S.sheet = sheetPhoto; },
+  fphoto() { S.F.photoRequired = !S.F.photoRequired; },
+  ractive() { S.F.active = !S.F.active; },
+  async photoglobal() { S.settings = await api('settings', 'PUT', { photo: { enabled: !S.settings.photo.enabled } }); },
+  async photokeep(d) { S.settings = await api('settings', 'PUT', { photo: { keepDays: Number(d.v) } }); },
+  async stats(d) {
+    const parent = S.view === 'parent', id = parent ? Number(d.id) : null;
+    S.F = { id, stats: await api(parent ? `kids/${id}/stats` : 'me/stats') };
+    S.sheet = sheetStats;
+  },
+  async statnav(d) {
+    const F = S.F, week = addDaysJs(F.stats.weekStart, Number(d.dir) * 7);
+    F.stats = await api((S.view === 'parent' ? `kids/${F.id}/stats` : 'me/stats') + `?week=${week}`);
+  },
+  async tplpicker() { S.taskDraft = S.F; S.templates = await api('templates'); S.sheet = sheetTemplates; },
+  tplback() { S.F = S.taskDraft; S.sheet = sheetTask; },
+  usetpl(d) {
+    const t = S.templates.find((x) => x.id === Number(d.id));
+    S.F = { ...S.taskDraft, title: t.title, description: t.description, icon: t.icon, points: t.points, repeat: t.repeat, days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired };
+    S.sheet = sheetTask;
+  },
+  async deltpl(d) { await api(`templates/${d.id}`, 'DELETE'); S.templates = await api('templates'); },
+  async savetpl() {
+    const F = S.F;
+    await api('templates', 'POST', { title: F.title, description: F.description, icon: F.icon, points: Number(F.points), repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired });
+    toast('Modèle enregistré dans la bibliothèque');
+  },
+  managekid(d) { S.F = { id: Number(d.id), newpin: '' }; S.sheet = sheetManageKid; },
+  async savepin() { await api(`kids/${S.F.id}`, 'PATCH', { pin: S.F.newpin }); S.sheet = null; toast('PIN modifié'); },
+
   // magasin (parent)
-  newreward() { S.F = { title: '', description: '', icon: '🎁', price: '', kids: S.kids.length ? [S.kids[0].id] : [], limit: 'none', stock: '', shared: false }; S.sheet = sheetReward; },
+  newreward() { S.F = { title: '', description: '', icon: '🎁', price: '', kids: S.kids.length ? [S.kids[0].id] : [], limit: 'none', stock: '', shared: false, validFrom: '', validUntil: '', active: true }; S.sheet = sheetReward; },
   editreward(d) {
     const r = S.rewards.find((x) => x.id === Number(d.id));
-    S.F = { id: r.id, title: r.title, description: r.description, icon: r.icon, price: r.price, kids: r.kids.slice(), limit: r.limit, stock: r.stock == null ? '' : r.stock, shared: r.shared };
+    S.F = { id: r.id, title: r.title, description: r.description, icon: r.icon, price: r.price, kids: r.kids.slice(), limit: r.limit, stock: r.stock == null ? '' : r.stock, shared: r.shared, validFrom: r.validFrom || '', validUntil: r.validUntil || '', active: r.active };
     S.sheet = sheetReward;
   },
   fshared() { S.F.shared = !S.F.shared; },
@@ -525,7 +676,18 @@ const A = {
   async equip(d) { await api(`me/accessories/${d.id}/equip`, 'POST', {}); },
 
   // enfant
-  async done(d) { await api(`occurrences/${d.id}/done`, 'POST', {}); confetti(); beep(); toast('Envoyé aux parents pour validation'); },
+  async done(d) {
+    const m = S.missions.today.find((o) => o.id === Number(d.id));
+    let photo = null;
+    if (m && m.photoRequired) { photo = await pickPhoto(); if (!photo) return; } // le sélecteur s'ouvre dans le geste de l'utilisateur
+    try {
+      await api(`occurrences/${d.id}/done`, 'POST', photo ? { photo } : {}); confetti(); beep(); toast('Envoyé aux parents pour validation');
+    } catch (e) {
+      if (!e.network) throw e;
+      qSave([...qLoad(), { kid: S.session.kid.id, occ: Number(d.id), path: `occurrences/${d.id}/done`, body: photo ? { photo } : {} }]);
+      applyQueued(); kidCacheSave(); toast('Hors connexion : la mission partira dès le retour du réseau.');
+    }
+  },
   async claim(d) { await api(`occurrences/${d.id}/claim`, 'POST', {}); toast('Mission ajoutée à ta liste'); },
 };
 

@@ -11,11 +11,15 @@ Node >= 22.5, Express, SQLite (`node:sqlite`), front PWA. Calquée sur `../liste
 
 Tests : `npm test` (node:test).
 
+**Après audit de sécurité** : verrous de connexion par appareil + profil (cookie `latribu_device`, table `trusted_devices`) et par adresse IP (`LATRIBU_TRUST_PROXY=1` derrière le proxy de l'hébergeur : dernière entrée de `X-Forwarded-For`) ; un tiers ne bloque plus la famille ; au plus 2 calculs scrypt en parallèle (file de 16, sinon 503) ; abonnements push limités aux services des navigateurs (`LATRIBU_PUSH_HOSTS` pour en ajouter) ; textes validés comme chaînes (`util.text`), emoji filtrés (`util.emoji`) et échappés côté interface ; API en `Cache-Control: no-store` ; messages d'erreur internes masqués. Non traités volontairement : installation ouverte tant qu'aucun compte n'existe (créer le compte parent dès le déploiement) et origine partagée de la passerelle (préférer un sous-domaine dédié).
+**Fonctions ajoutées** : photo preuve (réglage global désactivé par défaut + option par tâche, JPEG réduit par l'appareil, purge N jours après la décision), changement de PIN (Réglages > Gérer), statistiques hebdomadaires (parent et enfant), bibliothèque de 16 modèles de tâches (modifiable, « Enregistrer comme modèle »), validité des récompenses (dates + activation), file d'attente hors connexion pour le bouton « fait » avec dernière vue de l'enfant gardée (localStorage).
+
 ## Fichiers clés
 - `server.js` — app Express exportée (statique, `/api`, page avec `<base>` = `{{ROOT}}`).
 - `lib/db.js` — SQLite `data/latribu.db` (`LATRIBU_DATA_DIR`), migrations par `PRAGMA user_version` : ne jamais modifier une migration déployée, en ajouter une.
 - `lib/tasks.js` — tâches, génération des occurrences (`generate()` idempotente, invalidée à chaque modif), cycle déclaré/validé/refusé. `lib/points.js` — registre `movements` (solde = SUM(delta), XP = SUM(xp)). `lib/dates.js` — dates AAAA-MM-JJ, fuseau Europe/Brussels, lundi = 1.
 - `lib/game.js` — séries, bonus, badges, célébrations. `lib/push.js` — abonnements, envois, `tick()` (rappels + résumé, fenêtre de 10 min, anti-doublon `notif_log`), minuteur 1 min `unref` (`LATRIBU_PUSH=off` le coupe ; `LATRIBU_VAPID_SUBJECT` = contact transmis au service de push). `lib/settings.js` — réglages clé/valeur.
+- `lib/photos.js` (photo preuve), `lib/stats.js` (semaine lundi-dimanche), `lib/templates.js` (modèles de tâches).
 - `lib/shop.js` — récompenses, achats (transactions : le solde et le stock ne peuvent pas être dépassés), objectif, accessoires.
 - `lib/auth.js` — sessions en base (rôle parent/enfant), empreintes, limiteurs. `lib/api.js` — routes. `lib/util.js`, `lib/security.js`.
 - `public/` — `index.html`, `style.css`, `app.js` (SPA sans build, CSP sans script en ligne). `maquette/` — référence visuelle et fonctionnelle (état local, non reliée à l'API).
