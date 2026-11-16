@@ -27,21 +27,24 @@ test('réglages, clé VAPID et abonnements conservés après redémarrage puis m
   const again = run(dir, `const push = require('./lib/push'); console.log(JSON.stringify({ n: push.notifSettings(), key: push.publicKey() }));`);
   assert.deepEqual(again, first);
 
-  // Mise à jour simulée : la base est en version 4 (les tables push de la version 5 n'existent pas encore).
+  // Mise à jour simulée : la base est en version 5 (les objets de la version 6 n'existent pas encore).
   run(dir, `
     const { DatabaseSync } = require('node:sqlite'); const c = new DatabaseSync(require('path').join(process.env.LATRIBU_DATA_DIR, 'latribu.db'));
-    c.exec('DROP TABLE push_subscriptions; DROP TABLE notif_log; PRAGMA user_version = 4;'); c.close(); console.log('{}');`);
+    c.exec('DROP TABLE occurrence_photos; DROP TABLE task_templates; DROP TABLE trusted_devices; ALTER TABLE tasks DROP COLUMN photo_required; ALTER TABLE rewards DROP COLUMN valid_from; ALTER TABLE rewards DROP COLUMN valid_until; ALTER TABLE rewards DROP COLUMN active; PRAGMA user_version = 5;'); c.close(); console.log('{}');`);
   const upgraded = run(dir, `
     const push = require('./lib/push'); const { db } = require('./lib/db');
     console.log(JSON.stringify({ n: push.notifSettings(), key: push.publicKey(), v: db.prepare('PRAGMA user_version').get().user_version,
-      tables: db.prepare("SELECT name FROM sqlite_master WHERE name IN ('push_subscriptions', 'notif_log')").all().length }));`);
+      tables: db.prepare("SELECT name FROM sqlite_master WHERE name IN ('occurrence_photos', 'task_templates', 'trusted_devices')").all().length,
+      templates: db.prepare('SELECT COUNT(*) AS n FROM task_templates').get().n, subs: db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get().n }));`);
   assert.deepEqual(upgraded.n, first.n, 'réglages intacts après migration');
   assert.equal(upgraded.key, first.key, 'même clé VAPID : les abonnements existants restent valides');
-  assert.equal(upgraded.v, 5);
-  assert.equal(upgraded.tables, 2);
+  assert.equal(upgraded.v, 6);
+  assert.equal(upgraded.tables, 3);
+  assert.equal(upgraded.templates, 16, 'bibliothèque de modèles livrée');
+  assert.equal(upgraded.subs, 1, 'abonnements push conservés');
   const backups = fs.readdirSync(path.join(dir, 'backups'));
   assert.equal(backups.length, 1);
-  assert.match(backups[0], /^latribu-v4-.*\.db$/);
+  assert.match(backups[0], /^latribu-v5-.*\.db$/);
 });
 
 test('toutes les icônes référencées existent (manifeste, service worker, notifications)', () => {

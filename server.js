@@ -27,12 +27,19 @@ app.use(express.json({ limit: '1mb' }));
 // Interface : fichiers toujours revalidés (304 si inchangés), sauf la page elle-même.
 app.use(express.static(PUBLIC_DIR, { index: false, setHeaders: (res) => res.set('Cache-Control', 'no-cache') }));
 
+// L'API renvoie des données d'enfants : jamais mises en cache (navigateur ou intermédiaire).
+app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 app.use('/api', auth.loadSession, security.jsonOnly, router());
 app.use('/api', (req, res) => res.status(404).json({ error: 'Adresse inconnue.' }));
 app.use('/api', (err, req, res, next) => { // eslint-disable-line no-unused-vars
   const status = err.status || err.statusCode || 500;
   if (status >= 500 && !err.expose) console.error(err);
-  res.status(status).json({ error: status >= 500 && !err.expose ? 'Erreur interne du serveur.' : err.message });
+  // Messages internes (lecteur JSON, etc.) jamais renvoyés tels quels : seuls les messages voulus (httpError) le sont.
+  let message = err.message;
+  if (err.type === 'entity.parse.failed') message = 'JSON invalide.';
+  else if (err.type === 'entity.too.large') message = 'Requête trop volumineuse.';
+  else if (!err.expose) message = status >= 500 ? 'Erreur interne du serveur.' : 'Requête invalide.';
+  res.status(status).json({ error: message });
 });
 
 // Page unique (navigation par #). <base> = racine de l'app, pour des chemins relatifs

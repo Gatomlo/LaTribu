@@ -17,10 +17,10 @@ test.after(() => server.close());
 
 const client = () => {
   let cookie = '';
+  const jar = {};
   return async (p, method = 'GET', body) => {
     const res = await fetch(base + p, { method, headers: { 'Content-Type': 'application/json', cookie }, body: body && JSON.stringify(body) });
-    const set = res.headers.get('set-cookie');
-    if (set) cookie = set.split(';')[0];
+    for (const c of res.headers.getSetCookie()) { const [kv] = c.split(';'); jar[kv.split('=')[0]] = kv; cookie = Object.values(jar).join('; '); } // session + appareil
     return { status: res.status, data: await res.json() };
   };
 };
