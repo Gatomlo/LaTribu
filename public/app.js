@@ -270,7 +270,7 @@ function sheetTask() {
   ${F.repeat === 'monthly' ? field('f_md', 'Jour du mois', F.monthDay, 'type="number" min="1" max="31"') : ''}
   ${F.repeat === 'date' ? field('f_date', 'Date', F.date, 'type="date"') : ''}
   <label>Moment de la journée</label>${chips('fset', 'moment', [...MOMENTS, ['', 'Dans la journée']], (v) => (F.moment || '') === v)}`}
-  <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b><div class="mini">${S.settings.photo.enabled ? 'L\'enfant joint une photo en déclarant la mission' : 'Sans effet tant que les photos sont coupées (Réglages)'}</div></div>${sw(F.photoRequired)}</div>
+  <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b></div>${sw(F.photoRequired)}</div>
   ${open ? '' : `<label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
   <input id="f_rt" type="time" value="${esc(F.remindAt)}" style="margin-top:8px">`}
   <button class="btn full" style="margin-top:18px" data-a="savetask">${F.id ? 'Enregistrer' : 'Créer la tâche'}</button>
