@@ -262,8 +262,8 @@ function sheetTask() {
   ${iconField(F, 'icon', ICONS)}
   <label>Description (facultatif)</label><textarea id="f_desc" rows="2" placeholder="Ex. Toutes les plantes du salon">${esc(F.description)}</textarea>
   <label>Points gagnés (valeur libre)</label><input id="f_pts" class="ptsin" type="number" inputmode="numeric" value="${esc(F.points)}" placeholder="0">
-  ${F.id ? '' : `<label>Quand ?</label>${chips('fset', 'kind', [['plan', 'Planifiée'], ['open', 'Ouverte (sans date)']], (v) => F.kind === v)}`}
-  <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}${ks.length > 1 ? `<button class="${F.kids.length === ks.length ? 'on' : ''}" data-a="fall">Tous (chacun la fait)</button>` : ''}<button class="${F.kids.length ? '' : 'on'}" data-a="fnone">Non attribuée (le premier qui la prend)</button></div>
+  ${F.id ? '' : `<label>Quand ?</label>${chips('fset', 'kind', [['plan', 'Planifiée'], ['open', 'Ouverte']], (v) => F.kind === v)}`}
+  <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}<button class="${F.kids.length ? '' : 'on'}" data-a="fnone">Non attribuée</button></div>
   ${open ? '' : `<label>Répétition</label>${chips('fset', 'repeat', REPEATS, (v) => F.repeat === v)}
   ${F.repeat === 'days' ? `<div class="opts" style="margin-top:8px">${DAYS.map((d, i) => `<button class="${F.days.includes(i + 1) ? 'on' : ''}" data-a="ftoggle" data-f="days" data-v="${i + 1}">${d}</button>`).join('')}</div>` : ''}
   ${F.repeat === 'weekly' ? `<div style="margin-top:8px">${chips('fset', 'weekday', DAYS.map((d, i) => [i + 1, d]), (v) => F.days[0] === Number(v))}</div>` : ''}
@@ -359,7 +359,7 @@ function sheetReward() {
   ${iconField(F, 'icon', REW_ICONS)}
   <label>Description (facultatif)</label><textarea id="f_desc" rows="2" placeholder="Ex. Au restaurant de ton choix">${esc(F.description)}</textarea>
   <label>Prix en points (valeur libre)</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(F.price)}" placeholder="0">
-  <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}${ks.length > 1 ? `<button class="${F.kids.length === ks.length ? 'on' : ''}" data-a="fall">Tous</button>` : ''}</div>
+  <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}</div>
   <label>Limite par enfant</label>${chips('fset', 'limit', [['none', 'Aucune'], ['day', '1 par jour'], ['week', '1 par semaine'], ['month', '1 par mois']], (v) => F.limit === v)}
   <label>Validité (facultatif)</label><div class="row" style="gap:8px"><div class="sp"><div class="mini">Valable à partir du</div><input id="f_vfrom" type="date" value="${esc(F.validFrom)}"></div><div class="sp"><div class="mini">jusqu'au</div><input id="f_vuntil" type="date" value="${esc(F.validUntil)}"></div></div>
   <div class="line" data-a="ractive" style="border:0;padding-bottom:0"><div class="sp"><b>Active</b><div class="mini">${F.active ? 'Visible dans le magasin des enfants (si dans ses dates)' : 'Cachée aux enfants'}</div></div>${sw(F.active)}</div>
