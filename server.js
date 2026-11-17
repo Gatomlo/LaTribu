@@ -58,4 +58,7 @@ if (require.main === module) {
   app.listen(PORT, () => console.log(`La Tribu : http://localhost:${PORT}/`));
 }
 
+// Crochet facultatif lu par la passerelle (/_gw/admin) pour proposer les comptes à lier : lecture seule, sans secret.
+app.gatewayAccounts = auth.gatewayAccounts;
+
 module.exports = app;

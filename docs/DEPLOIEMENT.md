@@ -108,6 +108,27 @@ Désactiver : supprimer la variable `DEPLOY_ENABLED` (ou la mettre à autre chos
 - Le dépôt est public : aucun secret ne doit y figurer (les secrets sont dans l'environnement « production »).
 - Protéger `main` (Settings > Branches : tests obligatoires avant fusion).
 
+## 3 bis. Connexion centralisée de la passerelle (comptes et droits)
+
+La Tribu est branchée sur la connexion centralisée de `node-gateway` (README de la passerelle : « Comptes et droits ») :
+
+- **Liste des comptes** : La Tribu fournit à la passerelle la liste de ses comptes parents (e-mails, jamais de mot de passe)
+  par le crochet `app.gatewayAccounts`. Sur `/_gw/admin`, dans le compte d'un utilisateur, le champ « compte local » de
+  La Tribu propose alors ces comptes (pastille `✓ lié à …` ou `⚠ aucun compte correspondant`).
+  Le crochet n'est lu qu'au démarrage du site : après une mise à jour de La Tribu, **redémarrer le site**.
+- **Donner l'accès** : sur `/_gw/admin`, donner à la personne le droit **`admin`** sur l'outil **`latribu`**
+  (le nom de l'outil est le nom du dossier `apps/latribu`). Rattachement au compte parent : « compte local » si renseigné
+  (jamais de repli si ce compte n'existe pas), sinon e-mail identique, sinon identifiant identique à l'e-mail du compte parent.
+  Le droit `membre` ne donne pas accès à l'espace parents.
+- **Connexion** : une personne connectée à la plateforme avec ce droit arrive directement dans l'espace parents
+  (session locale de 2 h, jamais créée de compte). Après « Se déconnecter » dans La Tribu, la reconnexion automatique est
+  suspendue ; le bouton « Continuer avec la plateforme » la rétablit.
+- **Les enfants** ne passent pas par la plateforme : ils gardent leur profil + PIN sur leur téléphone.
+- **Premier compte** : derrière la passerelle, la création du compte parent par le web est fermée aux visiteurs anonymes.
+  Elle se fait en SSH (`npm run set-password`) ou, par un administrateur de la plateforme, depuis l'écran d'accueil.
+- Si la liste reste vide ou « non supporté » : la passerelle est trop ancienne (mettre à jour `node-gateway`) ou le site
+  n'a pas été redémarré après la mise à jour de La Tribu.
+
 ## 4. Données et sauvegardes
 
 - `data/` (base `latribu.db`, `backups/`) est ignoré par git : jamais écrasé par une mise à jour. Il contient aussi

@@ -124,6 +124,7 @@ function render() {
     a.innerHTML = `<div style="text-align:center;margin-top:36px">${logoBadge()}<h1 style="font-size:30px;letter-spacing:-.03em">La Tribu</h1><p class="mini" style="margin-top:4px">Qui es-tu ?</p></div>
     ${S.profiles.length ? `<div class="who">${S.profiles.map((k) => `<button data-a="pickkid" data-id="${k.id}">${avatar(k, 64)}${esc(k.name)}</button>`).join('')}</div>`
       : '<div class="card mini" style="margin-top:20px;text-align:center">Aucun profil enfant. Un parent doit les créer dans Réglages.</div>'}
+    ${gatewayBlock()}
     <button class="btn ghost full" style="margin-top:16px" data-a="pickparent">Espace parents</button>`;
   } else if (S.view === 'plogin') {
     a.innerHTML = `<button class="back" data-a="tologin">‹ Retour</button><div style="margin-top:20px"><h2>Espace parents</h2><p class="mini" style="margin-top:4px">Connecte-toi pour gérer la famille.</p></div>
@@ -140,6 +141,16 @@ function render() {
 
   if (S.sheet) $('#phone').insertAdjacentHTML('beforeend', `<div class="sheet-bg" data-a="closesheet"><div class="sheet">${S.sheet()}</div></div>`);
   if (S.fx) { S.fx = false; confetti(); beep(); }
+}
+
+// Connexion par la plateforme (node-gateway) : bouton si un compte parent est lié, explication sinon.
+function gatewayBlock() {
+  const g = S.session && S.session.gateway;
+  if (S.session && S.session.setupClosed) return '<div class="card mini" style="margin-top:16px">Aucun compte parent pour l\'instant. Il se crée en SSH (<code>npm run set-password</code>) ou depuis la plateforme par un administrateur.</div>';
+  if (!g) return '';
+  if (g.admin && g.linked) return `<button class="btn full" style="margin-top:16px" data-a="gwlogin">Continuer avec la plateforme · ${esc(g.name)}</button>`;
+  if (g.admin) return `<div class="card mini" style="margin-top:16px">Connecté à la plateforme comme ${esc(g.name)}, mais aucun compte parent n'est lié. L'administrateur de la plateforme doit indiquer l'e-mail du compte parent dans « compte local » (La Tribu).</div>`;
+  return `<div class="card mini" style="margin-top:16px">Connecté à la plateforme comme ${esc(g.name)} : l'espace parents demande le droit « admin » sur La Tribu.</div>`;
 }
 
 function tabs(list, current, badges = {}) {
@@ -546,6 +557,7 @@ const A = {
   async setup() { await api('setup', 'POST', { email: val('f_mail'), password: val('f_pw') }); S.tab = 'home'; await refresh(); },
   async plogin() { await api('login', 'POST', { email: val('f_mail'), password: val('f_pw') }); S.tab = 'home'; await refresh(); },
   pickparent() { S.view = 'plogin'; },
+  async gwlogin() { await api('gateway/login', 'POST', {}); S.tab = 'home'; await refresh(); },
   tologin() { S.view = 'login'; S.pin = ''; },
   pickkid(d) { S.kidId = Number(d.id); S.pin = ''; S.view = 'pin'; },
   async pin(d) {
