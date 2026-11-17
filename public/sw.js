@@ -2,7 +2,7 @@
 // notifications push. Portée = dossier de l'app (/latribu/ dans la passerelle). L'API n'est jamais
 // mise en cache : les données viennent toujours du serveur.
 // Changer VERSION quand la liste des fichiers change.
-const VERSION = 'latribu-v4';
+const VERSION = 'latribu-v5';
 const FILES = ['./', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png', 'badge-96.png',
   'notif-reminder.png', 'notif-ok.png', 'notif-reward.png', 'notif-review.png', 'notif-alert.png'];
 

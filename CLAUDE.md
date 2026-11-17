@@ -38,6 +38,8 @@ Tests : `npm test` (node:test).
 - Tâche : moment (matin/après-midi/soir) + heure de rappel push.
 - Solde = somme du registre `mouvements` (jamais d'UPDATE) ; XP séparé, ne diminue jamais.
 - Achat : points ET stock réservés à la demande (movement négatif `Réservé : …`), rendus si refus (movement `Remboursé : …`, sans XP). Limite par enfant comptée sur `purchases.created_date` (hors refusés). Stock partagé = `rewards.stock` + `shared=1` ; individuel = `reward_kids.stock`. Modifier le stock d'une récompense le réinitialise.
+- Tâche = deux axes indépendants : **quand** (`kind` plan = récurrence/date/moment/rappel, ou open = sans date ni moment, jamais manquée, à faire une fois) et **pour qui** (`task_kids` ; aucun enfant = non attribuée : une occurrence libre `kid_id` NULL, le premier enfant qui la prend la verrouille ; plan non attribuée = une occurrence libre par échéance). Les tâches ouvertes ne comptent pas dans les séries.
+- Interface : icônes via `iconField()` (favoris + catalogue par catégorie + emoji collé) ; les actions de formulaire (`LOCAL` dans app.js) mettent la fiche à jour sur place, sans recharger ni rejouer l'animation.
 - Occurrence = tâche x enfant x date (mission ouverte : `kid_id` NULL jusqu'à la prise, `due_date` = jour de la prise) ; statuts : à faire / en attente / validée / refusée / manquée.
 
 ## Mises à jour et déploiement

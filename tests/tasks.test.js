@@ -49,7 +49,6 @@ test('cycle complet : création, déclaration, validation, points, niveau', asyn
   // validations
   assert.equal((await parent('tasks', 'POST', { title: '', points: 5, kids: [ka], repeat: 'daily' })).status, 400);
   assert.equal((await parent('tasks', 'POST', { title: 'X', points: 0, kids: [ka], repeat: 'daily' })).status, 400);
-  assert.equal((await parent('tasks', 'POST', { title: 'X', points: 5, kids: [], repeat: 'daily' })).status, 400);
   assert.equal((await parent('tasks', 'POST', { title: 'X', points: 5, kids: [ka], repeat: 'date', date: '2020-01-01' })).status, 400);
   assert.equal((await parent('tasks', 'POST', { title: 'X', points: 5, kids: [ka], repeat: 'weekly', days: [1, 2] })).status, 400);
 
@@ -129,4 +128,41 @@ test('mission ouverte : le premier arrivé la verrouille ; date précise à veni
   const up = (await b('me/missions')).data.upcoming;
   assert.equal(up.length, 1);
   assert.equal(up[0].dueDate, future);
+});
+
+test('deux axes : planifiée/ouverte x enfants choisis/non attribuée', async () => {
+  const parent = client(), a = client(), b = client();
+  await parent('login', 'POST', { email: 'p@x.be', password: 'motdepasse1' });
+  const ks = (await parent('kids')).data;
+  await a(`kids/${ks[0].id}/login`, 'POST', { pin: '1111' });
+  await b(`kids/${ks[1].id}/login`, 'POST', { pin: '2222' });
+  const mine = async (c, title) => { const m = (await c('me/missions')).data; return { today: m.today.filter((o) => o.title === title), open: m.open.filter((o) => o.title === title) }; };
+
+  // planifiée + non attribuée : une occurrence libre aujourd'hui, un seul enfant la prend, une seule occurrence par jour
+  assert.equal((await parent('tasks', 'POST', { title: 'Sortir les poubelles', points: 10, kids: [], repeat: 'daily', moment: 'soir' })).status, 201);
+  tasks.invalidate();
+  const free = (await mine(a, 'Sortir les poubelles')).open;
+  assert.equal(free.length, 1, 'visible par les deux enfants, une seule occurrence');
+  assert.equal((await mine(b, 'Sortir les poubelles')).open.length, 1);
+  assert.equal((await b(`occurrences/${free[0].id}/claim`, 'POST', {})).status, 200);
+  assert.equal((await mine(a, 'Sortir les poubelles')).open.length, 0, 'prise par l\'autre');
+  assert.equal((await mine(b, 'Sortir les poubelles')).today.length, 1);
+  tasks.invalidate(); tasks.generate();
+  assert.equal((await mine(a, 'Sortir les poubelles')).open.length, 0, 'pas recréée après la prise');
+
+  // ouverte + enfants choisis : sans date, une occurrence par enfant, jamais manquée
+  assert.equal((await parent('tasks', 'POST', { title: 'Ranger le garage', points: 30, kind: 'open', kids: [ks[0].id, ks[1].id] })).status, 201);
+  assert.equal((await mine(a, 'Ranger le garage')).today.length, 1);
+  assert.equal((await mine(b, 'Ranger le garage')).today.length, 1);
+  assert.equal((await mine(a, 'Ranger le garage')).open.length, 0, 'attribuée : pas à prendre');
+  const t = (await parent('tasks')).data.find((x) => x.title === 'Ranger le garage');
+  assert.equal(t.kind, 'open'); assert.equal(t.repeat, null); assert.equal(t.moment, null); assert.equal(t.unassigned, false);
+
+  // ouverte + enfant retiré à la modification : seule l'occurrence encore à faire disparaît
+  assert.equal((await parent(`tasks/${t.id}`, 'PUT', { title: 'Ranger le garage', points: 30, kids: [ks[0].id] })).status, 200);
+  assert.equal((await mine(b, 'Ranger le garage')).today.length, 0);
+  assert.equal((await mine(a, 'Ranger le garage')).today.length, 1);
+
+  // enfant inconnu refusé
+  assert.equal((await parent('tasks', 'POST', { title: 'X', points: 5, kids: [9999], repeat: 'daily' })).status, 400);
 });

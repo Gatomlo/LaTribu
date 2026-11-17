@@ -27,7 +27,7 @@ const MOMENTS = [['matin', 'Matin'], ['apres', 'Après-midi'], ['soir', 'Soir']]
 const MOMENT_REMIND = { matin: '07:30', apres: '16:30', soir: '18:30' };
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const REPEATS = [['daily', 'Tous les jours'], ['days', 'Certains jours'], ['weekly', 'Chaque semaine'], ['monthly', 'Chaque mois'], ['date', 'Date précise']];
-const ICONS = ['🛏️', '🍽️', '📚', '🧹', '🗑️', '🐶', '🧺', '✨'];
+const ICONS = ['🛏️', '🍽️', '📚', '🧹', '🗑️', '🐶', '🧺', '🌱', '✨'];
 
 // ---------- Réseau ----------
 async function api(path, method = 'GET', body) {
@@ -188,9 +188,9 @@ function renderKid(a, nav) {
   if (S.tab === 'home') {
     const done = M.today.filter((o) => o.status === 'done').length;
     a.innerHTML = hero + offlineBanner() + pushBanner() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
-      : '<div class="card mini" style="margin-top:14px;text-align:center">Rien de prévu aujourd\'hui. Jette un œil aux missions ouvertes.</div>');
+      : '<div class="card mini" style="margin-top:14px;text-align:center">Rien de prévu aujourd\'hui. Jette un œil aux missions à prendre.</div>');
   } else if (S.tab === 'missions') {
-    a.innerHTML = `<h2>Missions</h2><div class="sec">Missions ouvertes</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>Premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Aucune mission ouverte pour le moment.'))
+    a.innerHTML = `<h2>Missions</h2><div class="sec">À prendre</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${o.kind === 'open' ? 'Sans date' : 'Pour aujourd\'hui'} · premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Rien à prendre pour le moment.'))
       + `<div class="sec">À venir</div>` + (M.upcoming.length ? M.upcoming.map((o) => missionRow({ ...o, label: o.label }, false)).join('') : emptyCard('Rien de prévu les prochains jours.'));
   } else if (S.tab === 'me') {
     a.innerHTML = hero + `<div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div><button class="btn ghost full" style="margin-top:16px" data-a="stats">Ma semaine en chiffres</button><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
@@ -211,8 +211,8 @@ function renderParent(a, nav) {
       <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusesheet" data-id="${o.id}">Refuser</button><button class="btn ok sp" data-a="approve" data-id="${o.id}">Valider</button></div>`).join('') || emptyCard('Aucune mission en attente.')) + purchasesSection();
   } else if (S.tab === 'tasks') {
     const plan = S.tasks.filter((t) => t.kind === 'plan'), open = S.tasks.filter((t) => t.kind === 'open');
-    const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${t.kind === 'plan' ? t.kids.map(kidName).map(esc).join(' + ') + ' · ' : ''}${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
-    a.innerHTML = `<div class="row"><h2 class="sp">Tâches</h2><button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div><div class="sec">Planifiées</div>${plan.map(row).join('') || emptyCard('Aucune tâche.')}<div class="sec">Missions ouvertes</div>${open.map(row).join('') || emptyCard('Aucune mission ouverte.')}`;
+    const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidName).map(esc).join(' + ') : 'Non attribuée') + ' · '}${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
+    a.innerHTML = `<div class="row"><h2 class="sp">Tâches</h2><button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div><div class="sec">Planifiées</div>${plan.map(row).join('') || emptyCard('Aucune tâche.')}<div class="sec">Ouvertes (sans date)</div>${open.map(row).join('') || emptyCard('Aucune tâche ouverte.')}`;
   } else if (S.tab === 'kids') {
     a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div></div>
       <div class="row" style="margin-top:14px"><div class="big sp">${k.points}<small style="font-size:14px;font-weight:500"> pts</small></div><button class="btn sm" style="background:#ffffff2e" data-a="adjsheet" data-id="${k.id}">Ajuster</button></div></div>
@@ -259,21 +259,21 @@ function sheetPw() {
 function sheetTask() {
   const F = S.F, open = F.kind === 'open', ks = S.kids;
   return `<h2>${F.id ? 'Modifier la tâche' : 'Nouvelle tâche'}</h2>${F.id ? '' : `<button class="btn ghost sm full" style="margin-top:10px" data-a="tplpicker">Choisir un modèle de tâche</button>`}${field('f_title', 'Titre', F.title, 'placeholder="Ex. Arroser les plantes"')}
-  <label>Icône</label><div class="opts">${ICONS.map((i) => `<button class="${F.icon === i ? 'on' : ''}" data-a="fset" data-f="icon" data-v="${i}">${i}</button>`).join('')}</div>
+  ${iconField(F, 'icon', ICONS)}
   <label>Description (facultatif)</label><textarea id="f_desc" rows="2" placeholder="Ex. Toutes les plantes du salon">${esc(F.description)}</textarea>
   <label>Points gagnés (valeur libre)</label><input id="f_pts" class="ptsin" type="number" inputmode="numeric" value="${esc(F.points)}" placeholder="0">
-  ${F.id ? '' : `<label>Type</label>${chips('fset', 'kind', [['plan', 'Planifiée'], ['open', 'Ouverte (premier arrivé)']], (v) => F.kind === v)}`}
-  ${open ? '<p class="mini" style="margin-top:12px">Visible par tous les enfants : le premier qui la prend la verrouille.</p>' : `
-  <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}${ks.length > 1 ? `<button class="${F.kids.length === ks.length ? 'on' : ''}" data-a="fall">Tous</button>` : ''}</div>
-  <label>Répétition</label>${chips('fset', 'repeat', REPEATS, (v) => F.repeat === v)}
+  ${F.id ? '' : `<label>Quand ?</label>${chips('fset', 'kind', [['plan', 'Planifiée'], ['open', 'Ouverte (sans date)']], (v) => F.kind === v)}`}
+  <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}${ks.length > 1 ? `<button class="${F.kids.length === ks.length ? 'on' : ''}" data-a="fall">Tous</button>` : ''}<button class="${F.kids.length ? '' : 'on'}" data-a="fnone">Non attribuée</button></div>
+  <p class="mini" style="margin-top:6px">${F.kids.length ? (open ? 'Chaque enfant choisi la retrouve dans ses missions, sans date.' : 'Une mission par enfant choisi, à chaque échéance.') : 'N\'importe quel enfant peut la prendre : le premier qui la prend la verrouille.'}</p>
+  ${open ? '' : `<label>Répétition</label>${chips('fset', 'repeat', REPEATS, (v) => F.repeat === v)}
   ${F.repeat === 'days' ? `<div class="opts" style="margin-top:8px">${DAYS.map((d, i) => `<button class="${F.days.includes(i + 1) ? 'on' : ''}" data-a="ftoggle" data-f="days" data-v="${i + 1}">${d}</button>`).join('')}</div>` : ''}
   ${F.repeat === 'weekly' ? `<div style="margin-top:8px">${chips('fset', 'weekday', DAYS.map((d, i) => [i + 1, d]), (v) => F.days[0] === Number(v))}</div>` : ''}
   ${F.repeat === 'monthly' ? field('f_md', 'Jour du mois', F.monthDay, 'type="number" min="1" max="31"') : ''}
   ${F.repeat === 'date' ? field('f_date', 'Date', F.date, 'type="date"') : ''}
   <label>Moment de la journée</label>${chips('fset', 'moment', [...MOMENTS, ['', 'Dans la journée']], (v) => (F.moment || '') === v)}`}
   <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b><div class="mini">${S.settings.photo.enabled ? 'L\'enfant joint une photo en déclarant la mission' : 'Sans effet tant que les photos sont coupées (Réglages)'}</div></div>${sw(F.photoRequired)}</div>
-  <label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
-  <input id="f_rt" type="time" value="${esc(F.remindAt)}" style="margin-top:8px">
+  ${open ? '' : `<label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
+  <input id="f_rt" type="time" value="${esc(F.remindAt)}" style="margin-top:8px">${F.kids.length ? '' : '<p class="mini" style="margin-top:6px">Le rappel ne part que pour une tâche attribuée à un enfant.</p>'}`}
   <button class="btn full" style="margin-top:18px" data-a="savetask">${F.id ? 'Enregistrer' : 'Créer la tâche'}</button>
   ${F.kind === 'plan' && F.repeat !== 'date' ? '<button class="btn ghost sm full" style="margin-top:8px" data-a="savetpl">Enregistrer comme modèle</button>' : ''}
   ${F.id ? '<button class="btn ko full" style="margin-top:8px" data-a="deltask">Supprimer la tâche</button>' : ''}`;
@@ -304,6 +304,26 @@ function sheetHist() {
 // ---------- Magasin ----------
 const LIMITS = { none: '', day: '1 par jour', week: '1 par semaine', month: '1 par mois' };
 const REW_ICONS = ['🎁', '🎮', '🍿', '🏊', '🍕', '🎬', '🛍️', '🌙'];
+// Sélecteur d'icônes : quelques favoris en ligne, un catalogue par catégorie et la saisie libre d'un emoji.
+const ICON_CATS = [
+  ['Maison', '🛏️ 🧹 🧺 🧽 🪣 🧼 🚿 🛁 🚽 🪟 🪴 🗑️ ♻️ 🧴 🪥 🔧 🔨 💡 🛋️ 🚪 📦 🧸 🪑 👕 👖 🧦'],
+  ['Cuisine', '🍽️ 🍳 🥣 🍴 🥄 🔪 🧊 🍞 🥗 🍎 🥕 🍕 🍝 🥪 🍰 🍪 🥛 ☕ 🧁 🍓 🥦 🌽 🍌 🍫'],
+  ['École', '📚 📖 ✏️ 📝 🎒 🖊️ 📐 🧮 🔬 🔭 🎓 💻 🗒️ 📅 🧠 🔤 🔢 🎹 🎻'],
+  ['Animaux', '🐶 🐱 🐹 🐰 🐟 🐢 🐦 🐴 🦜 🐾 🐕 🐈 🐠 🐇 🐓'],
+  ['Dehors', '🌱 🌻 🌳 🍃 🚲 🛴 🚗 🧤 🌧️ ☀️ 🏡 🚮 🥾 ⛄ 🍂 🪓 🌷 🧑‍🌾'],
+  ['Sport', '⚽ 🏀 🎾 🏊 🏃 🧘 🥋 ⛸️ 🎿 🏓 🏐 🤸 🛹 🏸 🚴'],
+  ['Loisirs', '🎮 🎬 🎵 🎸 🎨 🧩 🎲 📺 🎧 🎤 🎭 🪁 🧶 📷 🎪 🍿 🎯'],
+  ['Récompenses', '🎁 🏆 ⭐ 🌟 💎 👑 🎉 🎈 🍦 🍩 🛍️ 🪙 🎟️ 💰 🌙 🎂 🏅'],
+  ['Famille', '❤️ 💪 🤝 🙏 👶 👵 👴 😊 🌈 🦸 🎅 🏠 ✨ 🔥 🚀'],
+].map(([name, list]) => [name, list.split(' ')]);
+function iconField(F, key, favs) {
+  const cur = F[key], favList = favs.includes(cur) ? favs : [cur, ...favs.slice(0, favs.length - 1)];
+  const cats = F.ip ? `<div class="opts" style="margin-top:10px">${ICON_CATS.map(([n]) => `<button class="${F.ip === n ? 'on' : ''}" data-a="icat" data-v="${n}">${n}</button>`).join('')}</div>
+    <div class="icongrid">${(ICON_CATS.find(([n]) => n === F.ip) || ICON_CATS[0])[1].map((i) => `<button class="${cur === i ? 'on' : ''}" data-a="ichoose" data-f="${key}" data-v="${i}">${i}</button>`).join('')}</div>
+    <div class="row" style="gap:8px;margin-top:8px"><input id="f_ico" class="sp" placeholder="Ou colle un emoji" maxlength="12" style="margin:0"><button class="btn ghost sm" data-a="iuse" data-f="${key}">Utiliser</button></div>` : '';
+  return `<label>Icône</label><div class="opts">${favList.map((i) => `<button class="${cur === i ? 'on' : ''}" data-a="ichoose" data-f="${key}" data-v="${i}">${i}</button>`).join('')}<button class="${F.ip ? 'on' : ''}" data-a="ipick" aria-label="Plus d'icônes">${F.ip ? 'Moins' : 'Plus…'}</button></div>${cats}`;
+}
+
 const stockLabel = (left, shared) => (left == null ? '' : left > 0 ? `${left} restant${left > 1 ? 's' : ''}${shared ? ' (partagé)' : ''}` : 'Épuisé');
 const sw = (on) => `<span class="sw ${on ? 'on' : ''}"></span>`;
 
@@ -337,7 +357,7 @@ function parentShops() {
 function sheetReward() {
   const F = S.F, ks = S.kids;
   return `<h2>${F.id ? 'Modifier la récompense' : 'Nouvelle récompense'}</h2>${field('f_title', 'Titre', F.title, 'placeholder="Ex. Soirée pizza"')}
-  <label>Icône</label><div class="opts">${REW_ICONS.map((i) => `<button class="${F.icon === i ? 'on' : ''}" data-a="fset" data-f="icon" data-v="${i}">${i}</button>`).join('')}</div>
+  ${iconField(F, 'icon', REW_ICONS)}
   <label>Description (facultatif)</label><textarea id="f_desc" rows="2" placeholder="Ex. Au restaurant de ton choix">${esc(F.description)}</textarea>
   <label>Prix en points (valeur libre)</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(F.price)}" placeholder="0">
   <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}${ks.length > 1 ? `<button class="${F.kids.length === ks.length ? 'on' : ''}" data-a="fall">Tous</button>` : ''}</div>
@@ -433,7 +453,7 @@ function sheetCelebrate() {
 }
 const BADGE_ICONS = ['🏅', '💪', '🧠', '❤️', '⭐', '🎯'];
 function sheetBadge() {
-  return `<h2>Décerner un badge · ${esc(kidName(S.F.id))}</h2>${field('f_btitle', 'Titre du badge', S.F.title, 'placeholder="Ex. Super grand frère"')}<label>Icône</label><div class="opts">${BADGE_ICONS.map((i) => `<button class="${S.F.emoji === i ? 'on' : ''}" data-a="fset" data-f="emoji" data-v="${i}">${i}</button>`).join('')}</div><button class="btn full" style="margin-top:18px" data-a="savebadge">Décerner</button>`;
+  return `<h2>Décerner un badge · ${esc(kidName(S.F.id))}</h2>${field('f_btitle', 'Titre du badge', S.F.title, 'placeholder="Ex. Super grand frère"')}${iconField(S.F, 'emoji', BADGE_ICONS)}<button class="btn full" style="margin-top:18px" data-a="savebadge">Décerner</button>`;
 }
 const rewardBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, price: Number(F.price), limit: F.limit, stock: F.stock === '' ? null : Number(F.stock), shared: !!F.shared, kids: F.kids, validFrom: F.validFrom || null, validUntil: F.validUntil || null, active: !!F.active });
 
@@ -587,6 +607,15 @@ const A = {
     if (d.f === 'repeat' && d.v === 'weekly') F.days = [F.days[0] || 1]; },
   ftoggle(d) { const a = S.F[d.f], v = Number(d.v), i = a.indexOf(v); if (i >= 0) a.splice(i, 1); else a.push(v); },
   fall() { S.F.kids = S.F.kids.length === S.kids.length ? [] : S.kids.map((k) => k.id); },
+  fnone() { S.F.kids = []; },
+  ipick() { S.F.ip = S.F.ip ? '' : ICON_CATS[0][0]; },
+  icat(d) { S.F.ip = d.v; },
+  ichoose(d) { S.F[d.f] = d.v; S.F.ip = ''; },
+  iuse(d) {
+    const raw = (val('f_ico') || '').trim();
+    const first = raw && (typeof Intl !== 'undefined' && Intl.Segmenter ? [...new Intl.Segmenter().segment(raw)][0].segment : [...raw][0]);
+    if (first && /\p{Extended_Pictographic}/u.test(first)) { S.F[d.f] = first; S.F.ip = ''; } else throw new Error('Colle un emoji.');
+  },
   quick(d) { S.F.delta = d.v; },
   palette(d) { S.F.palette = Number(d.v); },
 
@@ -703,6 +732,17 @@ const A = {
   async claim(d) { await api(`occurrences/${d.id}/claim`, 'POST', {}); toast('Mission ajoutée à ta liste'); },
 };
 
+// Actions qui ne changent que le formulaire ouvert : pas de rechargement des données, la fiche est mise à jour sur place
+// (même élément, même défilement, aucune animation d'ouverture rejouée).
+const LOCAL = new Set(['fset', 'ftoggle', 'fall', 'fnone', 'fphoto', 'fshared', 'ractive', 'quick', 'ipick', 'icat', 'ichoose', 'iuse']);
+function renderSheetInPlace() {
+  const sh = S.sheet && document.querySelector('.sheet-bg .sheet');
+  if (!sh) return false;
+  const top = sh.scrollTop;
+  sh.innerHTML = S.sheet();
+  sh.scrollTop = top;
+  return true;
+}
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-a]');
   if (!b || b.disabled) return;
@@ -712,6 +752,7 @@ document.addEventListener('click', async (e) => {
   readInputs();
   try {
     await f(b.dataset);
+    if (LOCAL.has(b.dataset.a) && renderSheetInPlace()) return;
     if (S.view === 'parent' || S.view === 'kid') await loadData();
   } catch (err) {
     toast(err.message);
