@@ -91,7 +91,7 @@ Première installation. Reste à faire, dans cet ordre :
        cd "$APP" && npm run set-password -- <ton-email> <un-mot-de-passe-de-8-caracteres-ou-plus>
   2. Dans le manager Infomaniak, ajouter ces variables d'environnement du site Node.js :
        LATRIBU_VAPID_SUBJECT=mailto:<ton-email>   (contact transmis aux services de notification)
-       LATRIBU_TRUST_PROXY=1                      (seulement si le site est derrière un proxy ; sinon laisser vide)
+       LATRIBU_TRUST_PROXY=1                      (conseillé derrière un proxy : adresse réelle des visiteurs pour les limites de tentatives)
   3. Redémarrer le site Node.js, puis ouvrir https://<ton-domaine>/latribu/ et te connecter.
   4. Créer les enfants dans Réglages, puis installer l'app sur chaque téléphone (écran d'accueil)
      et activer les notifications.
