@@ -264,7 +264,6 @@ function sheetTask() {
   <label>Points gagnés (valeur libre)</label><input id="f_pts" class="ptsin" type="number" inputmode="numeric" value="${esc(F.points)}" placeholder="0">
   ${F.id ? '' : `<label>Quand ?</label>${chips('fset', 'kind', [['plan', 'Planifiée'], ['open', 'Ouverte (sans date)']], (v) => F.kind === v)}`}
   <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}${ks.length > 1 ? `<button class="${F.kids.length === ks.length ? 'on' : ''}" data-a="fall">Tous (chacun la fait)</button>` : ''}<button class="${F.kids.length ? '' : 'on'}" data-a="fnone">Non attribuée (le premier qui la prend)</button></div>
-  <p class="mini" style="margin-top:6px">${F.kids.length ? (open ? (F.kids.length > 1 ? 'Chaque enfant choisi doit la faire : elle apparaît dans les missions de chacun, sans date.' : 'Elle apparaît dans les missions de cet enfant, sans date.') : (F.kids.length > 1 ? 'Chaque enfant choisi doit la faire : une mission par enfant, à chaque échéance.' : 'Une mission pour cet enfant, à chaque échéance.')) : 'N\'importe quel enfant peut la prendre : le premier qui la prend la verrouille.'}</p>
   ${open ? '' : `<label>Répétition</label>${chips('fset', 'repeat', REPEATS, (v) => F.repeat === v)}
   ${F.repeat === 'days' ? `<div class="opts" style="margin-top:8px">${DAYS.map((d, i) => `<button class="${F.days.includes(i + 1) ? 'on' : ''}" data-a="ftoggle" data-f="days" data-v="${i + 1}">${d}</button>`).join('')}</div>` : ''}
   ${F.repeat === 'weekly' ? `<div style="margin-top:8px">${chips('fset', 'weekday', DAYS.map((d, i) => [i + 1, d]), (v) => F.days[0] === Number(v))}</div>` : ''}
@@ -273,7 +272,7 @@ function sheetTask() {
   <label>Moment de la journée</label>${chips('fset', 'moment', [...MOMENTS, ['', 'Dans la journée']], (v) => (F.moment || '') === v)}`}
   <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b><div class="mini">${S.settings.photo.enabled ? 'L\'enfant joint une photo en déclarant la mission' : 'Sans effet tant que les photos sont coupées (Réglages)'}</div></div>${sw(F.photoRequired)}</div>
   ${open ? '' : `<label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
-  <input id="f_rt" type="time" value="${esc(F.remindAt)}" style="margin-top:8px">${F.kids.length ? '' : '<p class="mini" style="margin-top:6px">Le rappel ne part que pour une tâche attribuée à un enfant.</p>'}`}
+  <input id="f_rt" type="time" value="${esc(F.remindAt)}" style="margin-top:8px">`}
   <button class="btn full" style="margin-top:18px" data-a="savetask">${F.id ? 'Enregistrer' : 'Créer la tâche'}</button>
   ${F.kind === 'plan' && F.repeat !== 'date' ? '<button class="btn ghost sm full" style="margin-top:8px" data-a="savetpl">Enregistrer comme modèle</button>' : ''}
   ${F.id ? '<button class="btn ko full" style="margin-top:8px" data-a="deltask">Supprimer la tâche</button>' : ''}`;
@@ -440,7 +439,7 @@ const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: stan
 const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 function installCard() {
   if (isStandalone()) return '<div class="card mini" style="padding:14px">✓ Application installée sur cet appareil.</div>';
-  return `<div class="card" style="padding:0 14px"><div class="line"><div class="sp"><b>Installer l'application</b><div class="mini">Une icône sur l'écran d'accueil, plein écran, et les notifications sur iPhone</div></div><button class="btn sm" data-a="install">Installer</button></div></div>`;
+  return `<div class="card" style="padding:0 14px"><div class="line"><div class="sp"><b>Installer l'application</b></div><button class="btn sm" data-a="install">Installer</button></div></div>`;
 }
 function sheetInstall() {
   const steps = isIos()
