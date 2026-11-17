@@ -31,6 +31,25 @@ dans un dossier jetable pour s'assurer qu'il démarre, puis affiche la suite :
 4. Créer les enfants dans Réglages, installer l'app sur chaque téléphone (écran d'accueil) et activer les
    notifications.
 
+### Variante : à la main avec `git clone` (sans le script)
+
+Depuis le dossier de la passerelle sur le serveur :
+
+```bash
+git clone https://github.com/Gatomlo/LaTribu.git apps/latribu
+cd apps/latribu
+npm install --omit=dev
+npm run set-password -- <email> <mot de passe de 8 caractères ou plus>   # compte parent, AVANT d'ouvrir le site
+```
+
+Puis variables d'environnement et redémarrage du site (étapes 2 et 3 ci-dessus). Mise à jour :
+
+```bash
+cd apps/latribu && git pull --ff-only && npm install --omit=dev
+```
+
+puis redémarrer le site. `data/` est ignoré par git : le `git pull` ne le touche pas.
+
 ## 2. Mise à jour manuelle
 
 Relancer la même commande (ou `bash apps/latribu/scripts/install.sh` depuis la passerelle), puis redémarrer le
