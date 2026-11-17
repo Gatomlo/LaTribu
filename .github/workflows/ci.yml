@@ -1,0 +1,71 @@
+# Intégration continue (tests + audit des dépendances) et déploiement automatique facultatif vers le serveur.
+#
+# Le déploiement est INACTIF tant que la variable de dépôt DEPLOY_ENABLED n'est pas « true »
+# (Settings > Secrets and variables > Actions > Variables). Mise en place : docs/DEPLOIEMENT.md.
+name: CI et déploiement
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Audit des dépendances de production
+        run: npm audit --omit=dev --audit-level=high
+
+  deploy:
+    needs: test
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production        # secrets rattachés à l'environnement « production » (validation manuelle possible)
+    concurrency:
+      group: deploy-latribu
+      cancel-in-progress: false
+    steps:
+      - name: Préparer la connexion SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Déployer cette version (code et dépendances, jamais data/)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SHA: ${{ github.sha }}
+        run: |
+          [[ "$DEPLOY_PATH" =~ ^[A-Za-z0-9._/~-]+$ ]] || { echo "DEPLOY_PATH invalide"; exit 1; }
+          # Le script de CETTE version est envoyé au serveur par SSH et exécuté avec REF = le commit testé.
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${SHA}/scripts/install.sh" \
+            | ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "REF='$SHA' bash -s -- '$DEPLOY_PATH'"
+
+      - name: Redémarrer le site (si une commande est configurée)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          RESTART_CMD: ${{ vars.RESTART_CMD }}
+        run: |
+          if [ -n "$RESTART_CMD" ]; then
+            ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "$RESTART_CMD"
+          else
+            echo "Pas de RESTART_CMD : redémarrer le site Node.js depuis le manager Infomaniak pour activer cette version."
+          fi
