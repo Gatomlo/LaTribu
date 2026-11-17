@@ -194,7 +194,7 @@ function renderKid(a, nav) {
       + `<div class="sec">À venir</div>` + (M.upcoming.length ? M.upcoming.map((o) => missionRow({ ...o, label: o.label }, false)).join('') : emptyCard('Rien de prévu les prochains jours.'));
   } else if (S.tab === 'me') {
     a.innerHTML = hero + `<div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div><button class="btn ghost full" style="margin-top:16px" data-a="stats">Ma semaine en chiffres</button><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
-    <div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Voir un exemple de rappel</button>' : ''}</div><div class="card" style="margin-top:14px;padding:0 14px"><div class="line" data-a="sound"><div class="sp"><b>Sons</b><div class="mini">Petits sons de réussite (coupés par défaut)</div></div>${sw(soundOn())}</div></div><div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
+    <div class="sec">Application</div>${installCard()}<div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Voir un exemple de rappel</button>' : ''}</div><div class="card" style="margin-top:14px;padding:0 14px"><div class="line" data-a="sound"><div class="sp"><b>Sons</b><div class="mini">Petits sons de réussite (coupés par défaut)</div></div>${sw(soundOn())}</div></div><div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
   } else a.innerHTML = kidShop();
 }
 
@@ -219,7 +219,7 @@ function renderParent(a, nav) {
       <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="stats" data-id="${k.id}">Stats</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Badge</button></div>`; }).join('');
   } else if (S.tab === 'set') {
     a.innerHTML = `<h2>Réglages</h2><div class="sec">Enfants</div><div class="card" style="padding:0 14px">${S.kids.map((k) => `<div class="line">${avatar(k, 38)}<div class="sp"><b>${esc(k.name)}</b><div class="mini">${k.age ? k.age + ' ans · ' : ''}${k.points} pts</div></div><button class="btn ghost sm" data-a="managekid" data-id="${k.id}">Gérer</button></div>`).join('')}<div class="line" data-a="newkid" style="color:var(--acc);font-weight:600">${ic('plus')}Ajouter un enfant</div></div>
-    <div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}
+    <div class="sec">Application</div>${installCard()}<div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}
     <div class="line" data-a="notifalert">${ic('check')}<div class="sp"><b>À chaque mission ou demande</b><div class="mini">Alerte immédiate à valider</div></div>${sw(S.settings.notif.alert)}</div>
     <div class="line" data-a="notifagain">${ic('clock')}<div class="sp"><b>Second rappel aux enfants</b><div class="mini">1 h après l'heure si la tâche n'est pas faite</div></div>${sw(S.settings.notif.remindAgain)}</div>
     <div class="line" style="border:0;padding-bottom:6px">${ic('bell')}<div class="sp"><b>Rappel quotidien de validation</b><div class="mini">S'il reste des éléments en attente</div></div></div>
@@ -431,6 +431,23 @@ async function pushOff() {
   const sub = reg && await reg.pushManager.getSubscription();
   if (sub) { await api('push/unsubscribe', 'POST', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
 }
+// ---------- Installation sur l'écran d'accueil ----------
+// Android/Chrome : invite native (beforeinstallprompt). iPhone et autres navigateurs : mode d'emploi.
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; });
+window.addEventListener('appinstalled', () => { installEvt = null; if (S.view === 'parent' || S.view === 'kid') render(); });
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function installCard() {
+  if (isStandalone()) return '<div class="card mini" style="padding:14px">✓ Application installée sur cet appareil.</div>';
+  return `<div class="card" style="padding:0 14px"><div class="line"><div class="sp"><b>Installer l'application</b><div class="mini">Une icône sur l'écran d'accueil, plein écran, et les notifications sur iPhone</div></div><button class="btn sm" data-a="install">Installer</button></div></div>`;
+}
+function sheetInstall() {
+  const steps = isIos()
+    ? ['Ouvre cette page dans <b>Safari</b>.', 'Touche le bouton <b>Partager</b> (le carré avec une flèche).', 'Choisis <b>Sur l\'écran d\'accueil</b>, puis <b>Ajouter</b>.']
+    : ['Ouvre le menu du navigateur (<b>⋮</b> ou <b>⋯</b>).', 'Choisis <b>Installer l\'application</b> ou <b>Ajouter à l\'écran d\'accueil</b>.', 'Confirme : l\'icône apparaît sur ton écran d\'accueil.'];
+  return `<h2>Installer La Tribu</h2><ol class="mini" style="margin:12px 0 0 18px;line-height:1.7">${steps.map((t) => `<li>${t}</li>`).join('')}</ol><button class="btn full" style="margin-top:18px" data-a="closesheet">J'ai compris</button>`;
+}
 function pushLine() {
   const st = S.push;
   if (st === 'unsupported') return `<div class="line">${ic('bell')}<div class="sp"><b>Notifications</b><div class="mini">${isIOS && !standalone() ? 'Sur iPhone, ajoute d\'abord l\'app à l\'écran d\'accueil (Partager, puis Sur l\'écran d\'accueil).' : 'Ce navigateur ne gère pas les notifications.'}</div></div></div>`;
@@ -576,6 +593,10 @@ const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.i
 const A = {
   async setup() { await api('setup', 'POST', { email: val('f_mail'), password: val('f_pw') }); S.tab = 'home'; await refresh(); },
   async plogin() { await api('login', 'POST', { email: val('f_mail'), password: val('f_pw') }); S.tab = 'home'; await refresh(); },
+  async install() {
+    if (installEvt) { const e = installEvt; installEvt = null; e.prompt(); const r = await e.userChoice.catch(() => null); if (r && r.outcome === 'accepted') toast('Installation en cours'); return; }
+    S.sheet = sheetInstall;
+  },
   pickparent() { S.view = 'plogin'; },
   async gwlogin() { await api('gateway/login', 'POST', {}); S.tab = 'home'; await refresh(); },
   tologin() { S.view = 'login'; S.pin = ''; },
