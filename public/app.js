@@ -19,6 +19,7 @@ const P = {
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
   eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
   chevl: '<polyline points="15 18 9 12 15 6"/>',
   chevr: '<polyline points="9 18 15 12 9 6"/>',
 };
@@ -50,7 +51,7 @@ async function api(path, method = 'GET', body) {
 }
 
 // ---------- État ----------
-const S = { viewAs: null, shopKid: null, taskKid: '', taskMoment: '', session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
+const S = { viewAs: null, shopKid: null, shopLimit: '', fkind: 'tasks', taskKid: '', taskMoment: '', session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -234,6 +235,36 @@ function renderKid(a, nav) {
   if (preview) a.innerHTML = preview + a.innerHTML;
 }
 
+// ---------- Filtres (tâches et magasin des parents) : un bouton ouvre un panneau ----------
+const taskMatch = (t) => {
+  const tk = S.taskKid, tm = S.taskMoment;
+  return (tk === '' || (tk === 'none' ? !t.kids.length : t.kids.includes(Number(tk)))) && (tm === '' || (tm === 'none' ? !t.moment : t.moment === tm));
+};
+const shopMatch = (r) => (!S.shopKid || r.kids.includes(S.shopKid)) && (S.shopLimit === '' || r.limit === S.shopLimit);
+const LIMIT_LABELS = { day: 'Chaque jour', week: 'Chaque semaine', month: 'Chaque mois', none: 'Sans limite' };
+const MOMENT_LABELS = { matin: 'Matin', apres: 'Après-midi', soir: 'Soir', none: 'Dans la journée' };
+const filterCount = (kind) => (kind === 'tasks' ? (S.taskKid !== '') + (S.taskMoment !== '') : (S.shopKid ? 1 : 0) + (S.shopLimit !== ''));
+const filterButton = (kind) => `<button class="btn ghost sm" data-a="openfilters" data-k="${kind}" aria-label="Filtres">${ic('filter')}Filtres${filterCount(kind) ? `<span class="fcount">${filterCount(kind)}</span>` : ''}</button>`;
+// Filtres actifs, rappelés sous le titre pour ne pas oublier qu'une liste est filtrée.
+function filterSummary(kind) {
+  if (!filterCount(kind)) return '';
+  const pills = kind === 'tasks'
+    ? [S.taskKid !== '' ? (S.taskKid === 'none' ? kidBadge(null) : kidBadge(S.taskKid)) : '', S.taskMoment !== '' ? `<span class="kb none">${MOMENT_LABELS[S.taskMoment]}</span>` : '']
+    : [S.shopKid ? kidBadge(S.shopKid) : '', S.shopLimit !== '' ? `<span class="kb none">${LIMIT_LABELS[S.shopLimit]}</span>` : ''];
+  return `<div class="fsum">${pills.join('')}<button data-a="filterreset" data-k="${kind}">Effacer</button></div>`;
+}
+function sheetFilters() {
+  const tasks = S.fkind === 'tasks', kids = S.kids.map((k) => [String(k.id), esc(k.name)]);
+  const n = tasks ? S.tasks.filter(taskMatch).length : S.rewards.filter(shopMatch).length;
+  const body = tasks
+    ? `<label>Pour qui ?</label>${chips('taskkid', 'x', [['', 'Tous'], ...kids, ['none', 'Non attribuée']], (v) => S.taskKid === v)}
+       <label>Moment de la journée</label>${chips('taskmoment', 'x', [['', 'Tous'], ...MOMENTS, ['none', 'Dans la journée']], (v) => S.taskMoment === v)}`
+    : `<label>Pour qui ?</label>${chips('shopkid', 'x', [['', 'Tous'], ...kids], (v) => String(S.shopKid || '') === v)}
+       <label>Fréquence</label>${chips('shoplimit', 'x', [['', 'Toutes'], ...Object.entries(LIMIT_LABELS)], (v) => S.shopLimit === v)}`;
+  return `<h2>Filtrer ${tasks ? 'les tâches' : 'le magasin'}</h2>${body}
+  <div class="row" style="margin-top:20px;gap:8px"><button class="btn ghost sp" data-a="filterreset" data-k="${S.fkind}">Réinitialiser</button><button class="btn sp" data-a="closesheet">Voir ${n} ${tasks ? 'tâche' : 'récompense'}${n > 1 ? 's' : ''}</button></div>`;
+}
+
 // ---------- Parent ----------
 function renderParent(a, nav) {
   nav.innerHTML = tabs([['home', 'check', 'À valider'], ['tasks', 'list', 'Tâches'], ['shops', 'bag', 'Magasins'], ['kids', 'users', 'Enfants'], ['set', 'gear', 'Réglages']], S.tab, { home: S.review.length + S.pending.length });
@@ -246,15 +277,10 @@ function renderParent(a, nav) {
       (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${kidBadge(o.kidId)} ${dl(o.doneAt)}</small>${reviewSteps(o)}</div>${o.hasPhoto ? `<img class="thumb" src="api/occurrences/${o.id}/photo" alt="Photo" data-a="viewphoto" data-id="${o.id}">` : ''}<span class="pts">+${reviewPts(o)}</span></div>
       <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusesheet" data-id="${o.id}">Refuser</button><button class="btn ok sp" data-a="approve" data-id="${o.id}">Valider</button></div>`).join('') || emptyCard('Aucune mission en attente.')) + purchasesSection();
   } else if (S.tab === 'tasks') {
-    // Filtres : pour qui (un enfant, non attribuée) et moment de la journée.
-    const tk = S.taskKid, tm = S.taskMoment;
-    const match = (t) => (tk === '' || (tk === 'none' ? !t.kids.length : t.kids.includes(Number(tk)))) && (tm === '' || (tm === 'none' ? !t.moment : t.moment === tm));
-    const shown = S.tasks.filter(match);
+    const shown = S.tasks.filter(taskMatch);
     const plan = shown.filter((t) => t.kind === 'plan'), open = shown.filter((t) => t.kind === 'open');
-    const filters = `<div class="opts" style="margin-top:10px">${[['', 'Tous'], ...S.kids.map((k) => [String(k.id), esc(k.name)]), ['none', 'Non attribuée']].map(([v, l]) => `<button class="${tk === v ? 'on' : ''}" data-a="taskkid" data-v="${v}">${l}</button>`).join('')}</div>
-      <div class="opts" style="margin-top:8px">${[['', 'Tous les moments'], ...MOMENTS, ['none', 'Dans la journée']].map(([v, l]) => `<button class="${tm === v ? 'on' : ''}" data-a="taskmoment" data-v="${v}">${l}</button>`).join('')}</div>`;
     const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidBadge).join('') : kidBadge(null))} ${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}${t.steps && t.steps.length ? `<div class="mini" style="margin-top:3px">${t.steps.length} sous-tâche${t.steps.length > 1 ? 's' : ''}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
-    a.innerHTML = `<div class="row"><h2 class="sp">Tâches</h2><button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div>${filters}<div class="sec">Planifiées (${plan.length})</div>${plan.map(row).join('') || emptyCard(S.tasks.length ? 'Aucune tâche pour ce filtre.' : 'Aucune tâche.')}<div class="sec">Ouvertes, sans date (${open.length})</div>${open.map(row).join('') || emptyCard('Aucune tâche ouverte.')}`;
+    a.innerHTML = `<div class="row" style="gap:8px"><h2 class="sp">Tâches</h2>${filterButton('tasks')}<button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div>${filterSummary('tasks')}<div class="sec">Planifiées (${plan.length})</div>${plan.map(row).join('') || emptyCard(S.tasks.length ? 'Aucune tâche pour ce filtre.' : 'Aucune tâche.')}<div class="sec">Ouvertes, sans date (${open.length})</div>${open.map(row).join('') || emptyCard('Aucune tâche ouverte.')}`;
   } else if (S.tab === 'kids') {
     a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div><button class="eyebtn" data-a="viewas" data-id="${k.id}" aria-label="Voir comme ${esc(k.name)}" title="Voir comme ${esc(k.name)}">${ic('eye')}</button></div>
       <div class="row" style="margin-top:14px"><div class="big sp">${k.points}<small style="font-size:14px;font-weight:500"> pts</small></div><button class="btn sm" style="background:#ffffff2e" data-a="adjsheet" data-id="${k.id}">Ajuster</button></div></div>
@@ -419,13 +445,12 @@ function parentShops() {
     return ks.map((id) => { const l = stockLabel(r.left[id], false); return l ? (ks.length > 1 ? `${kidBadge(id)}${l}` : l) : ''; }).filter(Boolean).join(' ');
   };
   const row = (r) => `<div class="task" data-a="editreward" data-id="${r.id}"><div class="ic">${esc(r.icon)}</div><div class="sp"><b>${esc(r.title)}</b><small>${kidF ? '' : who(r) + ' '}${[AVAIL[r.availability], stock(r), r.validUntil ? `Jusqu'au ${frd(r.validUntil)}` : ''].filter(Boolean).join(' · ')}</small>${r.description ? `<div class="mini" style="margin-top:3px">${esc(r.description)}</div>` : ''}</div><span class="pts">${r.price} pts</span></div>`;
-  const shown = S.rewards.filter((r) => !kidF || r.kids.includes(kidF.id));
-  const filter = S.kids.length > 1 ? `<div class="opts" style="margin-top:10px"><button class="${kidF ? '' : 'on'}" data-a="shopkid" data-v="">Tous</button>${S.kids.map((k) => `<button class="${kidF && kidF.id === k.id ? 'on' : ''}" data-a="shopkid" data-v="${k.id}">${esc(k.name)}</button>`).join('')}</div>` : '';
+  const shown = S.rewards.filter(shopMatch);
   const groups = SHOP_GROUPS.map(([lim, label]) => {
     const items = shown.filter((r) => r.limit === lim).sort((a, b) => a.price - b.price || a.id - b.id);
     return items.length ? `<div class="sec">${label} (${items.length})</div>${items.map(row).join('')}` : '';
   }).join('');
-  return `<div class="row"><h2 class="sp">Magasins</h2><button class="btn sm" data-a="newreward">${ic('plus')}Ajouter</button></div>${filter}`
+  return `<div class="row" style="gap:8px"><h2 class="sp">Magasins</h2>${filterButton('shops')}<button class="btn sm" data-a="newreward">${ic('plus')}Ajouter</button></div>${filterSummary('shops')}`
     + (groups || emptyCard('Aucune récompense.'))
     + [['accessory', 'Accessoires'], ['avatar', 'Avatars'], ['scene', 'Décors']].map(([kind, label]) => `<div class="sec">${label} (communs)</div>${S.accessories.filter((x) => x.kind === kind).map((x) => `<div class="task" data-a="accprice" data-id="${x.id}"><div class="ic" style="background:none;padding:0">${avatar({ name: '', palette: 0, look: {} }, 44, { look: tryOn(x) })}</div><div class="sp"><b>${esc(x.title)}</b>${x.minLevel > 1 ? `<small>Niveau ${x.minLevel}</small>` : ''}</div><span class="pts">${x.price} pts</span></div>`).join('')}`).join('');
 }
@@ -866,6 +891,9 @@ const A = {
 
   // magasin (enfant)
   shopseg(d) { S.shopSeg = d.v; },
+  openfilters(d) { S.fkind = d.k; S.sheet = sheetFilters; },
+  filterreset(d) { if (d.k) S.fkind = d.k; if (S.fkind === 'tasks') { S.taskKid = ''; S.taskMoment = ''; } else { S.shopKid = null; S.shopLimit = ''; } },
+  shoplimit(d) { S.shopLimit = d.v; },
   taskkid(d) { S.taskKid = d.v; },
   taskmoment(d) { S.taskMoment = d.v; },
   shopkid(d) { S.shopKid = d.v ? Number(d.v) : null; },
@@ -894,7 +922,7 @@ const A = {
 // Actions qui ne changent que le formulaire ouvert : pas de rechargement des données, la fiche est mise à jour sur place
 // (même élément, même défilement, aucune animation d'ouverture rejouée).
 const VIEW_OK = new Set(['tab', 'shopseg', 'stats', 'statnav', 'sound', 'closesheet', 'exitview']); // seules actions permises en aperçu parent
-const LOCAL = new Set(['fset', 'ftoggle', 'fall', 'fnone', 'kpick', 'fphoto', 'addstep', 'delstep', 'fshared', 'ractive', 'quick', 'ipick', 'icat', 'ichoose', 'iuse']);
+const LOCAL = new Set(['taskkid', 'taskmoment', 'shopkid', 'shoplimit', 'filterreset', 'fset', 'ftoggle', 'fall', 'fnone', 'kpick', 'fphoto', 'addstep', 'delstep', 'fshared', 'ractive', 'quick', 'ipick', 'icat', 'ichoose', 'iuse']);
 function renderSheetInPlace() {
   const sh = S.sheet && document.querySelector('.sheet-bg .sheet');
   if (!sh) return false;

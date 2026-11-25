@@ -118,3 +118,7 @@ input:focus{outline:2px solid var(--acc);border-color:transparent}
 .item.locked .kav{filter:grayscale(1) brightness(.85);opacity:.7}
 .unl{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
 .unl>div{display:grid;justify-items:center;gap:4px;width:74px;text-align:center}.unl small{font-size:11px;font-weight:600;line-height:1.2}
+
+.fcount{background:var(--acc);color:#fff;border-radius:999px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:6px}
+.fsum{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.fsum button{font-size:12px;font-weight:600;color:var(--acc);padding:4px 8px}
