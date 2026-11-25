@@ -16,6 +16,6 @@ md += `## Tâches communes (au premier qui la prend)\n\n${table(seed.TASKS.commu
 md += `## Magasin (limite par enfant)\n\n| Récompense | Limite | Prix |\n|---|---|---|\n${seed.REWARDS.map((r) => `| ${r.title} | 1 par ${lim[r.limit]} | ${r.price} |`).join('\n')}\n\n`;
 const byKind = (kd) => Object.entries(seed.ACCESSORY_PRICES).filter(([, v]) => v[2] === kd).map(([k, v]) => `${k} ${v[1]}`).join(' · ');
 md += `## Boutique d'avatar\n\nAccessoires : ${byKind('accessoire')}\n\nAvatars : ${byKind('avatar')}\n\nDécors : ${byKind('décor')}\n\n`;
-md += `Bonus de série (3 / 7 / 14 / 30 jours) : ${Object.values(seed.NEW_STREAK).join(' / ')}. Une journée compte dans la série à partir de ${seed.STREAK_MIN} % des missions faites (réglable par enfant).\n`;
+md += `Niveaux : ${seed.LEVEL_XP} XP par niveau (réglable dans Réglages). Chaque objet, avatar ou décor se débloque à un niveau (de 1 à 20, réglable objet par objet dans Magasins) ; la fête de passage de niveau annonce les nouveautés.\n\n`;\nmd += `Bonus de série (3 / 7 / 14 / 30 jours) : ${Object.values(seed.NEW_STREAK).join(' / ')}. Une journée compte dans la série à partir de ${seed.STREAK_MIN} % des missions faites (réglable par enfant).\n`;
 require('fs').writeFileSync(require('path').join(__dirname, '..', 'docs', 'BAREME.md'), md);
 console.log('docs/BAREME.md régénéré');

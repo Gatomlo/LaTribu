@@ -272,6 +272,9 @@ function renderParent(a, nav) {
     <div class="line" style="border:0;padding-bottom:6px"><div class="sp"><b>Conservation</b><div class="mini">Photo supprimée après la décision</div></div></div>
     <div class="opts" style="padding-bottom:14px">${[[3, '3 jours'], [7, '7 jours'], [30, '30 jours']].map(([v, l]) => `<button class="${S.settings.photo.keepDays === v ? 'on' : ''}" data-a="photokeep" data-v="${v}">${l}</button>`).join('')}</div></div>
     <p class="mini" style="margin:8px 2px 0">Dans une tâche, « Photo demandée » active l'exigence pour cette tâche seulement.</p>
+    <div class="sec">Niveaux</div><div class="card"><p class="mini">XP à gagner pour passer au niveau suivant. Les niveaux débloquent des objets, avatars et décors dans la boutique.</p>
+    <div class="line" style="border:0;padding:6px 0"><div class="sp"><b>XP par niveau</b></div><input id="f_lxp" type="number" min="10" inputmode="numeric" value="${S.settings.levelXp ?? ''}" style="width:90px;text-align:center"></div>
+    <button class="btn ghost sm full" style="margin-top:8px" data-a="savelevel">Enregistrer</button></div>
     <div class="sec">Bonus de série</div><div class="card"><p class="mini">Points offerts quand un enfant fait toutes ses missions plusieurs jours de suite (0 = aucun bonus).</p>
     ${[3, 7, 14, 30].map((m) => `<div class="line" style="border:0;padding:6px 0"><div class="sp"><b>${m} jours</b></div><input id="f_b${m}" type="number" min="0" inputmode="numeric" value="${S.settings.streakBonus[m] ?? ''}" style="width:90px;text-align:center"></div>`).join('')}
     <button class="btn ghost sm full" style="margin-top:8px" data-a="savebonus">Enregistrer les bonus</button></div><div class="sec">Compte</div><div class="card" style="padding:0 14px"><div class="line"><div class="sp"><b>${esc(S.session.email)}</b><div class="mini">Compte partagé</div></div></div><div class="line" data-a="chpw"><div class="sp"><b>Changer le mot de passe</b></div></div></div>
@@ -388,7 +391,7 @@ function kidShop() {
   if (S.shopSeg !== 'rew') {
     const kind = { acc: 'accessory', ava: 'avatar', sce: 'scene' }[S.shopSeg] || 'accessory';
     const SLOTS = { head: 'Sur la tête', face: 'Sur le visage', neck: 'Autour du cou' };
-    const card = (x) => `<div class="item">${avatar(K, 76, { look: tryOn(x) })}<b>${esc(x.title)}</b>${x.owned
+    const card = (x) => `<div class="item${x.locked ? ' locked' : ''}">${avatar(K, 76, { look: tryOn(x) })}<b>${esc(x.title)}</b>${x.locked ? `<button class="btn sm ghost" disabled>🔒 Niveau ${x.minLevel}</button>` : x.owned
       ? `<button class="btn sm ${x.equipped ? 'on' : 'ghost'}" data-a="equip" data-id="${x.id}">${x.equipped ? '✓ Équipé' : 'Équiper'}</button>`
       : `<button class="btn sm" data-a="buyacc" data-id="${x.id}" ${K.points < x.price ? 'disabled' : ''}>${x.price} pts</button>`}</div>`;
     const items = sh.accessories.filter((x) => x.kind === kind);
@@ -424,7 +427,7 @@ function parentShops() {
   }).join('');
   return `<div class="row"><h2 class="sp">Magasins</h2><button class="btn sm" data-a="newreward">${ic('plus')}Ajouter</button></div>${filter}`
     + (groups || emptyCard('Aucune récompense.'))
-    + [['accessory', 'Accessoires'], ['avatar', 'Avatars'], ['scene', 'Décors']].map(([kind, label]) => `<div class="sec">${label} (communs)</div>${S.accessories.filter((x) => x.kind === kind).map((x) => `<div class="task" data-a="accprice" data-id="${x.id}"><div class="ic" style="background:none;padding:0">${avatar({ name: '', palette: 0, look: {} }, 44, { look: tryOn(x) })}</div><div class="sp"><b>${esc(x.title)}</b></div><span class="pts">${x.price} pts</span></div>`).join('')}`).join('');
+    + [['accessory', 'Accessoires'], ['avatar', 'Avatars'], ['scene', 'Décors']].map(([kind, label]) => `<div class="sec">${label} (communs)</div>${S.accessories.filter((x) => x.kind === kind).map((x) => `<div class="task" data-a="accprice" data-id="${x.id}"><div class="ic" style="background:none;padding:0">${avatar({ name: '', palette: 0, look: {} }, 44, { look: tryOn(x) })}</div><div class="sp"><b>${esc(x.title)}</b>${x.minLevel > 1 ? `<small>Niveau ${x.minLevel}</small>` : ''}</div><span class="pts">${x.price} pts</span></div>`).join('')}`).join('');
 }
 function sheetReward() {
   const F = S.F, ks = S.kids;
@@ -444,7 +447,7 @@ function sheetReward() {
 }
 const sheetDelReward = () => sheetConfirm('Supprimer cette récompense ?', 'Elle disparaît du magasin des enfants. Les demandes déjà faites restent dans l\'historique.', 'confirmdelreward', 'Supprimer la récompense');
 function sheetAccPrice() {
-  return `<h2>${esc(S.F.emoji)} ${esc(S.F.title)}</h2><label>Prix en points</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(S.F.price)}"><button class="btn full" style="margin-top:18px" data-a="saveacc">Enregistrer</button>`;
+  return `<h2>${esc(S.F.emoji)} ${esc(S.F.title)}</h2><label>Prix en points</label><input id="f_price" class="ptsin" type="number" inputmode="numeric" value="${esc(S.F.price)}"><label>Niveau pour le débloquer</label><input id="f_lvl" type="number" min="1" max="100" inputmode="numeric" value="${esc(S.F.minLevel)}"><p class="mini" style="margin-top:6px">1 = disponible tout de suite. L'enfant le voit verrouillé jusqu'à ce niveau, puis l'achète avec ses points.</p><button class="btn full" style="margin-top:18px" data-a="saveacc">Enregistrer</button>`;
 }
 // ---------- Notifications push ----------
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -537,12 +540,13 @@ function beep() {
 }
 function sheetCelebrate() {
   const c = S.me.celebrate;
-  const head = c.perfectDay ? ['🎉', `Tout est fait, ${S.me.name} !`, 'Journée parfaite !'] : c.levelUp ? ['🎉', `Niveau ${c.levelUp} !`, ''] : c.badges.length ? ['🏅', 'Nouveau badge !', ''] : ['💌', c.kudos.length > 1 ? 'Des bravos pour toi !' : 'Un bravo pour toi !', ''];
+  const head = c.perfectDay ? ['🎉', `Tout est fait, ${S.me.name} !`, 'Journée parfaite !'] : c.levelUp ? ['🎉', `Niveau ${c.levelUp} !`, c.unlocks && c.unlocks.length ? 'De nouveaux objets se débloquent.' : ''] : c.badges.length ? ['🏅', 'Nouveau badge !', ''] : ['💌', c.kudos.length > 1 ? 'Des bravos pour toi !' : 'Un bravo pour toi !', ''];
   return `<div style="text-align:center"><div style="font-size:54px">${head[0]}</div><h2 style="margin-top:6px">${esc(head[1])}</h2>${head[2] ? `<p class="mini" style="margin-top:4px">${head[2]}</p>` : ''}
   ${c.perfectDay && c.levelUp ? `<p style="margin-top:10px"><b>Niveau ${c.levelUp} !</b></p>` : ''}
   ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div>` : (c.perfectDay || c.kudos.length ? '' : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>')}
+  ${c.unlocks && c.unlocks.length ? `<div class="sec" style="text-align:left">Nouveau dans la boutique !</div><div class="unl">${c.unlocks.map((x) => `<div>${avatar(S.me, 64, { look: tryOn(x) })}<small>${esc(x.title)}</small></div>`).join('')}</div>` : ''}
   ${c.kudos.map((k) => `<div class="card" style="margin-top:12px;display:flex;gap:12px;align-items:center;text-align:left"><div style="width:64px;flex:none">${stk(k.sticker)}</div><div class="sp"><b>${esc(k.label)}</b><div class="mini">De tes parents${k.note ? ' : ' + esc(k.note) : ''}</div></div>${k.points ? `<span class="pts">+${k.points}</span>` : ''}</div>`).join('')}
-  <button class="btn full" style="margin-top:18px" data-a="celebrated">Super !</button></div>`;
+  <button class="btn full" style="margin-top:18px" data-a="celebrated">Super !</button>${c.unlocks && c.unlocks.length ? '<button class="btn ghost full" style="margin-top:8px" data-a="celebratedshop">Voir la boutique</button>' : ''}</div>`;
 }
 // ---------- Autocollants (dessinés en SVG, sans fichier image) ----------
 const starPts = (cx, cy, ro, ri, n, rot = -90) => Array.from({ length: n * 2 }, (_, i) => { const r = i % 2 ? ri : ro, a = (rot + i * 180 / n) * Math.PI / 180; return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; }).join(' ');
@@ -695,6 +699,7 @@ function readInputs() {
   if (g('f_vuntil')) F.validUntil = g('f_vuntil').value;
   if (g('f_newpin')) F.newpin = g('f_newpin').value;
   if (g('f_price')) F.price = g('f_price').value;
+  if (g('f_lvl')) F.minLevel = g('f_lvl').value;
   if (g('f_stock')) F.stock = g('f_stock').value;
 }
 const val = (id) => (document.getElementById(id) || {}).value || '';
@@ -723,6 +728,10 @@ const A = {
   tab(d) { S.tab = d.t; $('#app').scrollTop = 0; },
   async closesheet() { if (S.sheet === sheetCelebrate) await api('me/seen', 'POST', {}); S.sheet = null; },
   async celebrated() { await api('me/seen', 'POST', {}); S.sheet = null; },
+  async celebratedshop() { // après la fête : direction l'onglet de la boutique qui contient la première nouveauté
+    const first = ((S.me.celebrate || {}).unlocks || [])[0];
+    await api('me/seen', 'POST', {}); S.sheet = null; S.tab = 'shop'; S.shopSeg = first ? { accessory: 'acc', avatar: 'ava', scene: 'sce' }[first.kind] : 'acc';
+  },
   async pushtoggle() {
     if (S.push === 'on') { await pushOff(); S.push = await pushState(); toast('Notifications coupées'); } else { await pushOn(); S.push = await pushState(); toast('Notifications activées'); }
   },
@@ -740,6 +749,7 @@ const A = {
   async sendkudos() { await api(`kids/${S.F.id}/kudos`, 'POST', { sticker: S.F.sticker, note: S.F.note, points: Number(S.F.kpts) || 0 }); S.sheet = null; toast('Bravo envoyé'); },
   badgesheet(d) { S.F = { id: Number(d.id), title: '', emoji: '🏅' }; S.sheet = sheetBadge; },
   async savebadge() { await api(`kids/${S.F.id}/badges`, 'POST', { title: S.F.title, emoji: S.F.emoji }); S.sheet = null; toast('Badge décerné'); },
+  async savelevel() { S.settings = await api('settings', 'PUT', { levelXp: Number(val('f_lxp')) }); toast('Niveaux enregistrés'); },
   async savebonus() { const b = {}; for (const m of [3, 7, 14, 30]) b[m] = Number(val(`f_b${m}`)); S.settings = await api('settings', 'PUT', { streakBonus: b }); toast('Bonus enregistrés'); },
   fset(d) { const F = S.F; if (d.f === 'weekday') F.days = [Number(d.v)]; else if (d.f === 'points') F.points = d.v; else F[d.f] = d.v;
     if (d.f === 'moment' && d.v && !F.remindAt) F.remindAt = MOMENT_REMIND[d.v];
@@ -849,8 +859,8 @@ const A = {
   },
   delreward() { S.sheet = sheetDelReward; },
   async confirmdelreward() { await api(`rewards/${S.F.id}`, 'DELETE'); S.sheet = null; toast('Récompense supprimée'); },
-  accprice(d) { const x = S.accessories.find((a) => a.id === Number(d.id)); S.F = { id: x.id, title: x.title, emoji: x.emoji, price: x.price }; S.sheet = sheetAccPrice; },
-  async saveacc() { await api(`accessories/${S.F.id}`, 'PUT', { price: Number(S.F.price) }); S.sheet = null; toast('Prix modifié'); },
+  accprice(d) { const x = S.accessories.find((a) => a.id === Number(d.id)); S.F = { id: x.id, title: x.title, emoji: x.emoji, price: x.price, minLevel: x.minLevel }; S.sheet = sheetAccPrice; },
+  async saveacc() { await api(`accessories/${S.F.id}`, 'PUT', { price: Number(S.F.price), minLevel: Number(S.F.minLevel) }); S.sheet = null; toast('Objet modifié'); },
   async givebuy(d) { await api(`purchases/${d.id}/give`, 'POST', {}); toast('Remise enregistrée'); },
   async refusebuy(d) { const r = await api(`purchases/${d.id}/refuse`, 'POST', {}); toast(`Points rendus à ${kidName(r.kidId)}`); },
 

@@ -50,6 +50,7 @@ test('chargement du pack : création, idempotence, réglages d\'un parent prése
   assert.equal(list.find((t) => t.title === 'Prendre une douche' && t.kids[0] === mylo).goalCount, 4);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM rewards').get().n, 12);
   assert.deepEqual(game.bonuses(), seed.NEW_STREAK);
+  assert.equal(require('../lib/points').levelXp(), seed.LEVEL_XP, 'niveaux espacés à l\'échelle des points');
   assert.equal(db.prepare('SELECT streak_min FROM kids WHERE id = ?').get(mylo).streak_min, 70);
   assert.equal(db.prepare("SELECT price FROM accessories WHERE title = 'Couronne'").get().price, 750);
   assert.equal(db.prepare("SELECT price FROM accessories WHERE title = 'Dragon'").get().price, 1750, 'avatars et décors aussi remis à l\'échelle');

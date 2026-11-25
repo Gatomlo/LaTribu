@@ -164,3 +164,34 @@ test('série tolérante : pourcentage de missions par enfant ; bravo avec points
   assert.equal(me.kudos[0].points, 50);
   assert.equal(me.celebrate.kudos[0].points, 50);
 });
+
+test('niveaux : objets, avatars et décors se débloquent ; la fête les annonce ; points par niveau réglables', async () => {
+  const parent = client(), kid = client();
+  await parent('login', 'POST', { email: 'p@x.be', password: 'motdepasse1' });
+  const k = (await parent('kids', 'POST', { name: 'Niv', pin: '6666' })).data.id;
+  await kid(`kids/${k}/login`, 'POST', { pin: '6666' });
+  const chat = (await parent('accessories')).data.find((a) => a.title === 'Chat');
+  assert.equal(chat.minLevel, 2);
+  await parent(`kids/${k}/adjust`, 'POST', { delta: 50, label: 'a' });
+  assert.equal((await kid(`me/accessories/${chat.id}/buy`, 'POST', {})).status, 409, 'niveau 1 : verrouillé');
+  const shopBefore = (await kid('me/shop')).data.accessories.find((a) => a.title === 'Chat');
+  assert.equal(shopBefore.locked, true);
+
+  await parent(`kids/${k}/adjust`, 'POST', { delta: 250, label: 'b' }); // 300 XP : niveau 4
+  const me = (await kid('me')).data;
+  assert.equal(me.level, 4);
+  const titles = me.celebrate.unlocks.map((u) => u.title);
+  assert.ok(['Chat', 'Chien', 'Lapin', 'Plage', 'Forêt'].every((t) => titles.includes(t)), 'avatars et décors des niveaux 2 à 4 annoncés');
+  assert.ok(!titles.includes('Panda'), 'niveau 6 : pas encore');
+  assert.equal((await kid(`me/accessories/${chat.id}/buy`, 'POST', {})).status, 200, 'débloqué');
+  await kid('me/seen', 'POST', {});
+  assert.deepEqual((await kid('me')).data.celebrate.unlocks, [], 'annoncé une seule fois');
+
+  assert.equal((await parent('settings', 'PUT', { levelXp: 5 })).status, 400);
+  const st = (await parent('settings', 'PUT', { levelXp: 500 })).data;
+  assert.equal(st.levelXp, 500);
+  const after = (await kid('me')).data;
+  assert.equal(after.levelXp, 500);
+  assert.equal(after.level, 1, '300 XP / 500 : niveau 1');
+  assert.equal(after.celebrate.levelUp, null, 'pas de fête rejouée après le changement d\'échelle');
+});

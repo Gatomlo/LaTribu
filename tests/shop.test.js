@@ -149,7 +149,8 @@ test('accessoires : achat immédiat avec les mêmes points, port, prix modifiabl
   assert.equal((await a('me')).data.look.face, undefined);
   await a(`me/accessories/${lunettes.id}/equip`, 'POST', {});
   assert.equal((await parent('kids')).data.find((k) => k.id === ka).look.face, 'glasses');
-  assert.equal((await parent(`accessories/${couronne.id}`, 'PUT', { price: 20 })).status, 200);
+  assert.equal((await a(`me/accessories/${couronne.id}/buy`, 'POST', {})).status, 409);
+  assert.equal((await parent(`accessories/${couronne.id}`, 'PUT', { price: 20, minLevel: 1 })).status, 200);
   assert.equal((await a(`me/accessories/${couronne.id}/buy`, 'POST', {})).status, 200, 'prix libre côté parent');
   assert.equal((await a('me/history')).data[0].label, 'Accessoire : Couronne');
 });
