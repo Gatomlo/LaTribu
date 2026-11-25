@@ -195,3 +195,18 @@ test('niveaux : objets, avatars et décors se débloquent ; la fête les annonce
   assert.equal(after.level, 1, '300 XP / 500 : niveau 1');
   assert.equal(after.celebrate.levelUp, null, 'pas de fête rejouée après le changement d\'échelle');
 });
+
+test('couleur de l\'enfant : choisie par le parent ou par l\'enfant, 8 couleurs', async () => {
+  const parent = client(), kid = client();
+  await parent('login', 'POST', { email: 'p@x.be', password: 'motdepasse1' });
+  const k = (await parent('kids', 'POST', { name: 'Coul', pin: '7777', palette: 7 })).data.id;
+  assert.equal((await parent('kids', 'POST', { name: 'Hors', pin: '8888', palette: 8 })).status, 400, 'couleur inconnue');
+  await kid(`kids/${k}/login`, 'POST', { pin: '7777' });
+  assert.equal((await kid('me')).data.palette, 7);
+  assert.equal((await kid('me/palette', 'PUT', { palette: 3 })).status, 200, 'l\'enfant change sa couleur');
+  assert.equal((await kid('me')).data.palette, 3);
+  assert.equal((await kid('me/palette', 'PUT', { palette: 9 })).status, 400);
+  assert.equal((await parent(`kids/${k}`, 'PATCH', { palette: 6 })).status, 200, 'le parent aussi');
+  assert.equal((await parent('kids')).data.find((x) => x.id === k).palette, 6);
+  assert.equal((await parent('me/palette', 'PUT', { palette: 2 })).status, 403, 'réservé à l\'enfant connecté');
+});

@@ -26,7 +26,9 @@ const P = {
   chevr: '<polyline points="9 18 15 12 9 6"/>',
 };
 const ic = (n) => `<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`;
-const PAL = [['#14b8a6', '#0ea5e9'], ['#7c5cff', '#d946ef'], ['#f59e0b', '#ef4444'], ['#3b82f6', '#6366f1'], ['#ec4899', '#f43f5e'], ['#22c55e', '#14b8a6']];
+// Couleurs de l'enfant : [principale (texte blanc lisible dessus), secondaire]. Accent de son interface et couleur de sa bouille.
+const PAL = [['#0F766E', '#14B8A6'], ['#6C4DFF', '#B53DD6'], ['#C2410C', '#F59E0B'], ['#2563EB', '#6366F1'], ['#DB2777', '#F43F5E'], ['#15803D', '#22C55E'], ['#DC2626', '#F97316'], ['#374151', '#6B7280']];
+const colorPicker = (current, action) => `<div class="opts">${PAL.map((c, i) => `<button class="sw2 ${Number(current) === i ? 'on' : ''}" style="background:${c[0]}" data-a="${action}" data-v="${i}" aria-label="Couleur ${i + 1}" aria-pressed="${Number(current) === i}"></button>`).join('')}</div>`;
 const MOMENTS = [['matin', 'Matin'], ['apres', 'Après-midi'], ['soir', 'Soir']];
 const MOMENT_REMIND = { matin: '07:30', apres: '16:30', soir: '18:30' };
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -128,7 +130,8 @@ async function refresh() {
 function render() {
   document.querySelectorAll('.sheet-bg').forEach((e) => e.remove());
   const a = $('#app'), nav = $('#nav'), root = document.documentElement;
-  root.style.removeProperty('--acc'); root.style.removeProperty('--acc2'); // violet de la marque pour tous (l'identité de l'enfant passe par son avatar)
+  if (S.view === 'kid' && S.me) { const c = palOf(S.me); root.style.setProperty('--acc', c[0]); root.style.setProperty('--acc2', c[1]); } // accent = couleur de l'enfant
+  else { root.style.removeProperty('--acc'); root.style.removeProperty('--acc2'); } // parent : violet de la marque
   nav.innerHTML = '';
 
   if (S.view === 'setup') {
@@ -231,7 +234,7 @@ function renderKid(a, nav) {
     a.innerHTML = `<h2>Missions</h2><div class="sec">À prendre</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${o.kind === 'open' ? 'Sans date' : 'Pour aujourd\'hui'} · premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Rien à prendre pour le moment.'))
       + `<div class="sec">À venir</div>` + (M.upcoming.length ? M.upcoming.map((o) => missionRow({ ...o, label: o.label }, false)).join('') : emptyCard('Rien de prévu les prochains jours.'));
   } else if (S.tab === 'me') {
-    a.innerHTML = hero + `<div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div><button class="btn ghost full" style="margin-top:16px" data-a="stats">Ma semaine en chiffres</button><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
+    a.innerHTML = hero + `<div class="sec">Ma couleur</div><div class="card">${colorPicker(m.palette, 'mycolor')}</div><div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div><button class="btn ghost full" style="margin-top:16px" data-a="stats">Ma semaine en chiffres</button><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
     <div class="sec">Application</div>${installCard()}<div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Voir un exemple de rappel</button>' : ''}</div><div class="card" style="margin-top:14px;padding:0 14px"><div class="line" data-a="sound"><div class="sp"><b>Sons</b><div class="mini">Petits sons de réussite (coupés par défaut)</div></div>${sw(soundOn())}</div></div><div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
   } else a.innerHTML = kidShop();
   if (preview) a.innerHTML = preview + a.innerHTML;
@@ -284,7 +287,7 @@ function renderParent(a, nav) {
     const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidBadge).join('') : kidBadge(null))} ${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}${t.photoRequired ? `<span class="chip" style="padding:2px 7px;font-size:11px" title="Photo preuve demandée">${ic('camera')}Photo</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}${t.steps && t.steps.length ? `<div class="mini" style="margin-top:3px">${t.steps.length} sous-tâche${t.steps.length > 1 ? 's' : ''}</div>` : ''}</div><span class="pts">${t.points}</span></div>`;
     a.innerHTML = `<div class="row" style="gap:8px"><h2 class="sp">Tâches</h2>${filterButton('tasks')}<button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div>${filterSummary('tasks')}<div class="sec">Planifiées (${plan.length})</div>${plan.map(row).join('') || emptyCard(S.tasks.length ? 'Aucune tâche pour ce filtre.' : 'Aucune tâche.')}<div class="sec">Ouvertes, sans date (${open.length})</div>${open.map(row).join('') || emptyCard('Aucune tâche ouverte.')}`;
   } else if (S.tab === 'kids') {
-    a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div><button class="eyebtn" data-a="viewas" data-id="${k.id}" aria-label="Voir comme ${esc(k.name)}" title="Voir comme ${esc(k.name)}">${ic('eye')}</button></div>
+    a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]};background:${c[0]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div><button class="eyebtn" data-a="viewas" data-id="${k.id}" aria-label="Voir comme ${esc(k.name)}" title="Voir comme ${esc(k.name)}">${ic('eye')}</button></div>
       <div class="row" style="margin-top:14px"><div class="big sp">${k.points}<small style="font-size:14px;font-weight:500"> pts</small></div><button class="btn sm" style="background:#ffffff2e" data-a="adjsheet" data-id="${k.id}">Ajuster</button></div></div>
       <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="stats" data-id="${k.id}">Stats</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Badge</button><button class="btn ghost sm sp" data-a="kudossheet" data-id="${k.id}">Bravo</button></div>`; }).join('');
   } else if (S.tab === 'set') {
@@ -321,7 +324,7 @@ const chips = (action, f, items, isOn) => `<div class="opts">${items.map(([v, l]
 function sheetKid() {
   const F = S.F;
   return `<h2>Nouvel enfant</h2>${field('f_name', 'Prénom', F.name, 'placeholder="Prénom"')}${field('f_age', 'Âge (facultatif)', F.age, 'type="number" inputmode="numeric"')}
-  <label>Couleur</label><div class="opts">${PAL.map((c, i) => `<button class="sw2 ${F.palette === i ? 'on' : ''}" style="background:linear-gradient(135deg,${c[0]},${c[1]})" data-a="palette" data-v="${i}"></button>`).join('')}</div>
+  <label>Couleur</label>${colorPicker(F.palette, 'palette')}
   ${field('f_pin', 'Code PIN (4 chiffres)', F.pin, 'inputmode="numeric" maxlength="4" placeholder="••••"')}<p class="mini" style="margin-top:6px">L'enfant le saisit une seule fois : sa session reste ouverte sur son téléphone.</p>
   <button class="btn full" style="margin-top:18px" data-a="savekid">Créer le profil</button>`;
 }
@@ -573,7 +576,7 @@ function beep() {
 function sheetCelebrate() {
   const c = S.me.celebrate;
   const head = c.perfectDay ? ['🎉', `Tout est fait, ${S.me.name} !`, 'Journée parfaite !'] : c.levelUp ? ['🎉', `Niveau ${c.levelUp} !`, c.unlocks && c.unlocks.length ? 'De nouveaux objets se débloquent.' : ''] : c.badges.length ? ['🏅', 'Nouveau badge !', ''] : ['💌', c.kudos.length > 1 ? 'Des bravos pour toi !' : 'Un bravo pour toi !', ''];
-  const ring = c.levelUp && !c.perfectDay ? `<div class="levelring"><svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="92" fill="#fff" stroke="rgba(108,77,255,.14)" stroke-width="10"/><circle cx="100" cy="100" r="92" fill="none" stroke="#6C4DFF" stroke-width="10" stroke-linecap="round" stroke-dasharray="578 578" transform="rotate(-90 100 100)"/></svg><div class="num"><small>Niveau</small><b>${c.levelUp}</b></div></div>` : `<div style="font-size:54px">${head[0]}</div>`;
+  const ring = c.levelUp && !c.perfectDay ? `<div class="levelring"><svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="92" fill="#fff" stroke-width="10" style="stroke:color-mix(in srgb,var(--acc) 14%,transparent)"/><circle cx="100" cy="100" r="92" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="578 578" transform="rotate(-90 100 100)" style="stroke:var(--acc)"/></svg><div class="num"><small>Niveau</small><b>${c.levelUp}</b></div></div>` : `<div style="font-size:54px">${head[0]}</div>`;
   if (c.levelUp && !c.perfectDay) head[1] = `Level up, ${S.me.name} !`;
   return `<div style="text-align:center">${ring}<h2 style="margin-top:10px">${esc(head[1])}</h2>${head[2] ? `<p class="mini" style="margin-top:4px">${head[2]}</p>` : ''}
   ${c.perfectDay && c.levelUp ? `<p style="margin-top:10px"><b>Niveau ${c.levelUp} !</b></p>` : ''}
@@ -671,6 +674,7 @@ function sheetManageKid() {
   return `<h2>${esc(k.name)}</h2><label>Nouveau code PIN (4 chiffres)</label><input id="f_newpin" inputmode="numeric" maxlength="4" placeholder="••••" value="${esc(S.F.newpin || '')}">
   <button class="btn full" style="margin-top:10px" data-a="savepin">Changer le PIN</button><p class="mini" style="margin-top:6px">Les téléphones de l'enfant devront ressaisir le nouveau code.</p>
   <div class="sec">Série de jours</div><p class="mini">Part des missions du jour à réaliser pour que la journée compte dans la série.</p>${chips('streakmin', 'x', [[100, '100 %'], [90, '90 %'], [80, '80 %'], [70, '70 %'], [60, '60 %'], [50, '50 %']], (v) => (k.streakMin || 100) === Number(v))}
+  <div class="sec">Couleur</div>${colorPicker(k.palette, 'kidcolor')}
   <div class="sec">Autres actions</div><button class="btn ghost full" data-a="revoke" data-id="${k.id}">Déconnecter ses appareils</button><button class="btn ko full" style="margin-top:8px" data-a="delkid" data-id="${k.id}">Supprimer ${esc(k.name)}</button>`;
 }
 
@@ -808,6 +812,8 @@ const A = {
   sound() { try { localStorage.setItem('tribu_sound', soundOn() ? '0' : '1'); } catch { /* stockage indisponible */ } beep(); },
   viewas(d) { S.viewAs = Number(d.id); S.view = 'kid'; S.tab = 'home'; S.me = null; S.missions = { today: [], late: [], open: [], upcoming: [] }; S.sheet = null; },
   exitview() { S.viewAs = null; S.view = 'parent'; S.tab = 'kids'; S.me = null; S.sheet = null; },
+  async kidcolor(d) { await api(`kids/${S.F.id}`, 'PATCH', { palette: Number(d.v) }); },
+  async mycolor(d) { await api('me/palette', 'PUT', { palette: Number(d.v) }); },
   async streakmin(d) { await api(`kids/${S.F.id}`, 'PATCH', { streakMin: Number(d.v) }); toast('Série mise à jour'); },
   async kudossheet(d) { S.stickers = S.stickers || await api('stickers'); S.F = { id: Number(d.id), sticker: 'bravo', note: '', kpts: '' }; S.sheet = sheetKudos; },
   kpick(d) { S.F.sticker = d.v; },
