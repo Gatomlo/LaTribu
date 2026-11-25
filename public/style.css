@@ -1,6 +1,6 @@
 @font-face{font-family:Inter;src:url(fonts/inter.woff2) format('woff2');font-weight:400 700;font-style:normal;font-display:swap}
 @font-face{font-family:'Space Grotesk';src:url(fonts/space-grotesk.woff2) format('woff2');font-weight:500 700;font-style:normal;font-display:swap}
-:root{--bg:#F5F3FA;--bg2:#E9E6F3;--card:#fff;--card2:#F0EEF7;--ink:#14102A;--mute:#6A6585;--line:rgba(24,18,48,.09);--acc:#6C4DFF;--acc2:#8B6CFF;--gold:#946500;--goldbg:#FFF1CC;--ok:#0B8F63;--okbg:#DDF8EE;--ko:#C93346;--kobg:#FFE6E9;--violetl:color-mix(in srgb,var(--acc) 12%,#fff);--violetd:color-mix(in srgb,var(--acc) 78%,#000);--cyan:#0877B3;--cyanbg:#DFF3FD;--green:#12B981;--lime:#C8FF3D;--display:'Space Grotesk','Inter',system-ui,sans-serif;--sh:0 1px 2px rgba(20,16,40,.05),0 10px 28px rgba(20,16,40,.07)}
+:root{--bg:#EEEBF8;--bg2:#E1DDEF;--card:#fff;--card2:#E8E4F5;--ink:#14102A;--mute:#4F4A72;--line:rgba(24,18,48,.14);--acc:#6C4DFF;--acc2:#8B6CFF;--gold:#946500;--goldbg:#FFF1CC;--ok:#0B8F63;--okbg:#DDF8EE;--ko:#C93346;--kobg:#FFE6E9;--violetl:color-mix(in srgb,var(--acc) 12%,#fff);--violetd:color-mix(in srgb,var(--acc) 78%,#000);--cyan:#0877B3;--cyanbg:#DFF3FD;--green:#12B981;--lime:#C8FF3D;--display:'Space Grotesk','Inter',system-ui,sans-serif;--sh:0 1px 2px rgba(20,16,40,.08),0 8px 22px rgba(20,16,40,.1)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%}
 body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg2);color:var(--ink);display:flex;justify-content:center;-webkit-font-smoothing:antialiased}
@@ -273,3 +273,42 @@ input,textarea{background:#fff;border-radius:14px}
 .rhead .e{font-size:30px;line-height:1}
 .rchips{display:flex;gap:6px;flex-wrap:wrap}
 .item .rchips .chip{font-size:11px;padding:3px 8px}
+
+/* ===== Contraste renforcé : surfaces mieux séparées, textes plus foncés, boutons secondaires encadrés ===== */
+.mini{color:var(--mute);font-weight:500}
+.sec{color:#3E3961}
+.hero small,.hero .mini{opacity:1;font-weight:600;color:#fff}
+.hero .cap,.hero .bar+small{color:#fff}
+.hero .chip{background:rgba(255,255,255,.24)}
+.hero .btn.ghost,.hero .btn.sm{box-shadow:none}
+.hero .btn.sm:not([style*="background:#fff"]){background:rgba(255,255,255,.26);color:#fff}
+.chip{background:rgba(24,18,48,.1);color:var(--ink)}
+.btn.ghost{background:#fff;color:var(--violetd);border:1.5px solid color-mix(in srgb,var(--acc) 45%,transparent);padding:11.5px 16.5px}
+.btn.sm.ghost{padding:7.5px 12.5px}
+.btn.ko{background:#fff;color:var(--ko);border:1.5px solid color-mix(in srgb,var(--ko) 45%,transparent);padding:11.5px 16.5px}
+.btn[disabled]{background:#E3DFEE;color:#5F5A7C}
+.opts button{background:#fff;border:1.5px solid var(--line);color:var(--ink);padding:6.5px 10.5px}
+.opts button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.opts button.sw2{border:3px solid transparent;padding:0}.opts button.sw2.on{border-color:var(--ink)}
+.seg{border-color:var(--line)}
+.seg button{color:#3E3961}
+.seg button.on{color:#fff}
+input,textarea{border:1.5px solid rgba(24,18,48,.2)}
+.tabs{border-color:rgba(24,18,48,.14);box-shadow:0 14px 34px rgba(20,16,40,.22)}
+.tabs button{color:#3E3961}.tabs button.on{color:#fff}
+.chk{border-color:rgba(24,18,48,.32);color:rgba(24,18,48,.4)}
+.chk.todo,.chk.refused{border-color:rgba(24,18,48,.32);color:rgba(24,18,48,.4)}
+.chk:disabled{border-color:rgba(24,18,48,.2);color:rgba(24,18,48,.25)}
+.sbox{border-color:rgba(24,18,48,.45)}
+.step .box{border-color:rgba(24,18,48,.45)}
+.task{border-color:rgba(24,18,48,.12)}
+.card{border-color:rgba(24,18,48,.12)}
+.tag.p{background:var(--violetl);color:var(--violetd)}
+.kb{color:var(--ink)}
+.stkgrid button{background:#fff;border:2px solid var(--line)}
+.stkgrid button.on{border-color:var(--acc)}
+.dayseg i{background:rgba(24,18,48,.16)}
+.xp,.bar{background:rgba(24,18,48,.14)}
+.card .bar{background:rgba(24,18,48,.14)}
+.hero .bar,.hero .xp{background:rgba(255,255,255,.3)}
+.chk.ready,.chk.todo.ready,.chk.refused.ready{background:var(--acc);border-color:var(--acc);color:#fff}
