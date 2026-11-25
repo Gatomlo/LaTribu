@@ -198,7 +198,7 @@ function byMoment(list) {
 function histRow(h) {
   return `<div class="line"><div class="sp"><b style="font-size:14px;font-weight:500">${esc(h.label)}</b><div class="mini">${dl(h.at)}</div></div><span class="pts ${h.delta < 0 ? 'neg' : ''}">${h.delta > 0 ? '+' : ''}${h.delta}</span></div>`;
 }
-const kudosCard = () => (S.me.kudos && S.me.kudos.length ? `<div class="sec">Bravos reçus</div>${S.me.kudos.slice(0, 3).map((k) => `<div class="line"><div style="width:52px;flex:none">${stk(k.sticker)}</div><div class="sp"><b style="font-size:14px">${esc(k.label)}</b><div class="mini">${k.note ? esc(k.note) + ' · ' : ''}${dl(k.at)}</div></div></div>`).join('')}` : '');
+const kudosCard = () => (S.me.kudos && S.me.kudos.length ? `<div class="sec">Bravos reçus</div>${S.me.kudos.slice(0, 3).map((k) => `<div class="line"><div style="width:52px;flex:none">${stk(k.sticker)}</div><div class="sp"><b style="font-size:14px">${esc(k.label)}</b><div class="mini">${k.note ? esc(k.note) + ' · ' : ''}${dl(k.at)}</div></div>${k.points ? `<span class="pts">+${k.points}</span>` : ''}</div>`).join('')}` : '');
 function renderKid(a, nav) {
   const m = S.me;
   nav.innerHTML = tabs([['home', 'home', 'Accueil'], ['missions', 'target', 'Missions'], ['shop', 'bag', 'Magasin'], ['me', 'user', 'Moi']], S.tab);
@@ -296,6 +296,8 @@ function sheetTask() {
   ${(F.steps || []).map((x, i) => `<div class="row" style="margin-top:6px"><input id="f_step${i}" value="${esc(x.label)}" maxlength="80" placeholder="Ex. Vider le lave-vaisselle" style="flex:1">${each ? `<input id="f_stepp${i}" class="ptsin" type="number" inputmode="numeric" value="${esc(x.points || '')}" placeholder="pts" style="width:72px">` : ''}<button class="btn ghost sm" data-a="delstep" data-i="${i}" aria-label="Retirer la sous-tâche">×</button></div>`).join('')}
   ${each ? `<label>Bonus si toutes les sous-tâches sont faites (facultatif)</label><input id="f_sbonus" class="ptsin" type="number" inputmode="numeric" min="0" value="${esc(F.stepsBonus || '')}" placeholder="0">` : ''}
   ${(F.steps || []).length < 12 ? `<button class="btn ghost sm full" style="margin-top:8px" data-a="addstep">${ic('plus')}Ajouter une sous-tâche</button>` : ''}
+  ${open ? `<label>Renouvellement</label>${chips('fset', 'reopen', [['', 'Une seule fois'], ['day', 'Le lendemain'], ['week', 'La semaine suivante']], (v) => (F.reopen || '') === v)}<p class="mini" style="margin-top:6px">${F.reopen ? 'Quand elle est faite et validée, la tâche redevient disponible ' + (F.reopen === 'day' ? 'dès le lendemain.' : 'à partir du lundi suivant.') : 'La tâche disparaît une fois validée.'}</p>`
+    : F.repeat !== 'date' ? `<label>Objectif de la semaine (facultatif)</label><div class="row"><input id="f_gc" type="number" inputmode="numeric" min="1" max="7" value="${esc(F.goalCount)}" placeholder="Fois / semaine" style="flex:1"><input id="f_gb" type="number" inputmode="numeric" min="1" value="${esc(F.goalBonus)}" placeholder="Bonus (pts)" style="flex:1"></div><p class="mini" style="margin-top:6px">Un bonus est accordé, une fois par semaine, quand la tâche est validée au moins ce nombre de fois (du lundi au dimanche).</p>` : ''}
   <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b></div>${sw(F.photoRequired)}</div>
   ${open ? '' : `<label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
   <input id="f_rt" type="time" value="${esc(F.remindAt)}" style="margin-top:8px">`}
@@ -493,7 +495,7 @@ function sheetCelebrate() {
   return `<div style="text-align:center"><div style="font-size:54px">${head[0]}</div><h2 style="margin-top:6px">${esc(head[1])}</h2>${head[2] ? `<p class="mini" style="margin-top:4px">${head[2]}</p>` : ''}
   ${c.perfectDay && c.levelUp ? `<p style="margin-top:10px"><b>Niveau ${c.levelUp} !</b></p>` : ''}
   ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div>` : (c.perfectDay || c.kudos.length ? '' : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>')}
-  ${c.kudos.map((k) => `<div class="card" style="margin-top:12px;display:flex;gap:12px;align-items:center;text-align:left"><div style="width:64px;flex:none">${stk(k.sticker)}</div><div class="sp"><b>${esc(k.label)}</b><div class="mini">De tes parents${k.note ? ' : ' + esc(k.note) : ''}</div></div></div>`).join('')}
+  ${c.kudos.map((k) => `<div class="card" style="margin-top:12px;display:flex;gap:12px;align-items:center;text-align:left"><div style="width:64px;flex:none">${stk(k.sticker)}</div><div class="sp"><b>${esc(k.label)}</b><div class="mini">De tes parents${k.note ? ' : ' + esc(k.note) : ''}</div></div>${k.points ? `<span class="pts">+${k.points}</span>` : ''}</div>`).join('')}
   <button class="btn full" style="margin-top:18px" data-a="celebrated">Super !</button></div>`;
 }
 // ---------- Autocollants (dessinés en SVG, sans fichier image) ----------
@@ -520,6 +522,8 @@ function sheetKudos() {
   const F = S.F;
   return `<h2>Encourager ${esc(kidName(F.id))}</h2><p class="mini" style="margin-top:2px">${esc(kidName(F.id))} le reçoit en notification et dans son espace.</p>
   <div class="stkgrid">${S.stickers.map((x) => `<button class="${F.sticker === x.key ? 'on' : ''}" data-a="kpick" data-v="${x.key}" aria-label="${esc(x.label)}" aria-pressed="${F.sticker === x.key}">${stk(x.key)}</button>`).join('')}</div>
+  <label>Points bonus (facultatif)</label>${chips('fset', 'kpts', [['', 'Aucun'], ['25', '25'], ['50', '50'], ['100', '100'], ['250', '250']], (v) => String(F.kpts || '') === v)}
+  <input id="f_kpts" type="number" inputmode="numeric" min="0" value="${esc(F.kpts || '')}" placeholder="Ou un autre nombre de points" style="margin-top:8px">
   <label>Un mot (facultatif)</label><input id="f_knote" maxlength="140" value="${esc(F.note)}" placeholder="Ex. Merci d'avoir aidé ton frère">
   <button class="btn full" style="margin-top:18px" data-a="sendkudos">Envoyer le bravo</button>`;
 }
@@ -582,6 +586,7 @@ function sheetManageKid() {
   const k = S.kids.find((x) => x.id === S.F.id);
   return `<h2>${esc(k.name)}</h2><label>Nouveau code PIN (4 chiffres)</label><input id="f_newpin" inputmode="numeric" maxlength="4" placeholder="••••" value="${esc(S.F.newpin || '')}">
   <button class="btn full" style="margin-top:10px" data-a="savepin">Changer le PIN</button><p class="mini" style="margin-top:6px">Les téléphones de l'enfant devront ressaisir le nouveau code.</p>
+  <div class="sec">Série de jours</div><p class="mini">Part des missions du jour à réaliser pour que la journée compte dans la série.</p>${chips('streakmin', 'x', [[100, '100 %'], [90, '90 %'], [80, '80 %'], [70, '70 %'], [60, '60 %'], [50, '50 %']], (v) => (k.streakMin || 100) === Number(v))}
   <div class="sec">Autres actions</div><button class="btn ghost full" data-a="revoke" data-id="${k.id}">Déconnecter ses appareils</button><button class="btn ko full" style="margin-top:8px" data-a="delkid" data-id="${k.id}">Supprimer ${esc(k.name)}</button>`;
 }
 
@@ -632,6 +637,9 @@ function readInputs() {
   if (g('f_date')) F.date = g('f_date').value;
   if (g('f_rt')) F.remindAt = g('f_rt').value;
   if (g('f_sbonus')) F.stepsBonus = g('f_sbonus').value;
+  if (g('f_gc')) F.goalCount = g('f_gc').value;
+  if (g('f_gb')) F.goalBonus = g('f_gb').value;
+  if (g('f_kpts')) F.kpts = g('f_kpts').value;
   (F.steps || []).forEach((x, i) => { if (g('f_step' + i)) x.label = g('f_step' + i).value; if (g('f_stepp' + i)) x.points = g('f_stepp' + i).value; });
   if (g('f_delta')) F.delta = g('f_delta').value;
   if (g('f_label')) F.label = g('f_label').value;
@@ -644,8 +652,8 @@ function readInputs() {
   if (g('f_stock')) F.stock = g('f_stock').value;
 }
 const val = (id) => (document.getElementById(id) || {}).value || '';
-const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false, steps: [], stepsMode: 'all', stepsBonus: '' });
-const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, steps: (F.steps || []).filter((x) => x.label.trim()).map((x) => ({ id: x.id, label: x.label, points: Number(x.points) || 0 })), stepsMode: (F.steps || []).some((x) => x.label.trim()) ? F.stepsMode : 'all', stepsBonus: Number(F.stepsBonus) || 0 });
+const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false, steps: [], stepsMode: 'all', stepsBonus: '', reopen: '', goalCount: '', goalBonus: '' });
+const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, steps: (F.steps || []).filter((x) => x.label.trim()).map((x) => ({ id: x.id, label: x.label, points: Number(x.points) || 0 })), stepsMode: (F.steps || []).some((x) => x.label.trim()) ? F.stepsMode : 'all', stepsBonus: Number(F.stepsBonus) || 0, reopen: F.kind === 'open' ? F.reopen || null : null, goalCount: Number(F.goalCount) || 0, goalBonus: Number(F.goalBonus) || 0 });
 
 // ---------- Actions ----------
 const A = {
@@ -678,9 +686,10 @@ const A = {
   async notifagain() { S.settings = await api('settings', 'PUT', { notif: { remindAgain: !S.settings.notif.remindAgain } }); },
   async notifdigest(d) { S.settings = await api('settings', 'PUT', { notif: { digest: d.v || null } }); },
   sound() { try { localStorage.setItem('tribu_sound', soundOn() ? '0' : '1'); } catch { /* stockage indisponible */ } beep(); },
-  async kudossheet(d) { S.stickers = S.stickers || await api('stickers'); S.F = { id: Number(d.id), sticker: 'bravo', note: '' }; S.sheet = sheetKudos; },
+  async streakmin(d) { await api(`kids/${S.F.id}`, 'PATCH', { streakMin: Number(d.v) }); toast('Série mise à jour'); },
+  async kudossheet(d) { S.stickers = S.stickers || await api('stickers'); S.F = { id: Number(d.id), sticker: 'bravo', note: '', kpts: '' }; S.sheet = sheetKudos; },
   kpick(d) { S.F.sticker = d.v; },
-  async sendkudos() { await api(`kids/${S.F.id}/kudos`, 'POST', { sticker: S.F.sticker, note: S.F.note }); S.sheet = null; toast('Bravo envoyé'); },
+  async sendkudos() { await api(`kids/${S.F.id}/kudos`, 'POST', { sticker: S.F.sticker, note: S.F.note, points: Number(S.F.kpts) || 0 }); S.sheet = null; toast('Bravo envoyé'); },
   badgesheet(d) { S.F = { id: Number(d.id), title: '', emoji: '🏅' }; S.sheet = sheetBadge; },
   async savebadge() { await api(`kids/${S.F.id}/badges`, 'POST', { title: S.F.title, emoji: S.F.emoji }); S.sheet = null; toast('Badge décerné'); },
   async savebonus() { const b = {}; for (const m of [3, 7, 14, 30]) b[m] = Number(val(`f_b${m}`)); S.settings = await api('settings', 'PUT', { streakBonus: b }); toast('Bonus enregistrés'); },
@@ -714,7 +723,7 @@ const A = {
   newtask() { S.F = blankTask(); S.sheet = sheetTask; },
   edittask(d) {
     const t = S.tasks.find((x) => x.id === Number(d.id));
-    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired, steps: (t.steps || []).map((x) => ({ ...x })), stepsMode: t.stepsMode || 'all', stepsBonus: t.stepsBonus || '' };
+    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired, steps: (t.steps || []).map((x) => ({ ...x })), stepsMode: t.stepsMode || 'all', stepsBonus: t.stepsBonus || '', reopen: t.reopen || '', goalCount: t.goalCount || '', goalBonus: t.goalBonus || '' };
     S.sheet = sheetTask;
   },
   async savetask() {
@@ -729,7 +738,7 @@ const A = {
   rvstep(d) { const id = Number(d.id), st = Number(d.step), l = (desel[id] = desel[id] || []), i = l.indexOf(st); if (i >= 0) l.splice(i, 1); else l.push(st); },
   async approve(d) {
     const o = S.review.find((x) => x.id === Number(d.id)), body = o && o.stepsMode === 'each' ? { steps: o.steps.filter((x) => x.checked && !(desel[o.id] || []).includes(x.id)).map((x) => x.id) } : {};
-    const r = await api(`occurrences/${d.id}/approve`, 'POST', body); confetti(); beep(); toast(`+${r.earned} pts pour ${kidName(r.kidId)}${r.awarded.length ? ` · bonus de série +${r.awarded[0].points}` : ''}`); },
+    const r = await api(`occurrences/${d.id}/approve`, 'POST', body); confetti(); beep(); toast(`+${r.earned} pts pour ${kidName(r.kidId)}${r.awarded.length ? ` · bonus de série +${r.awarded[0].points}` : ''}${r.goalBonus ? ` · objectif de la semaine +${r.goalBonus}` : ''}`); },
   refusesheet(d) { S.F = { id: Number(d.id) }; S.sheet = sheetRefuse; },
   async refuse() { await api(`occurrences/${S.F.id}/refuse`, 'POST', { note: val('f_note') }); S.sheet = null; toast('Renvoyé à l\'enfant'); },
   adjsheet(d) { S.F = { id: Number(d.id), delta: '', label: '' }; S.sheet = sheetAdjust; },
@@ -765,7 +774,7 @@ const A = {
   usetpl(d) {
     const t = S.templates.find((x) => x.id === Number(d.id));
     S.F = { ...S.taskDraft, title: t.title, description: t.description, icon: t.icon, points: t.points, repeat: t.repeat, days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired,
-      steps: (t.steps || []).map((x) => ({ label: x.label, points: x.points || '' })), stepsMode: t.stepsMode || 'all', stepsBonus: t.stepsBonus || '' };
+      steps: (t.steps || []).map((x) => ({ label: x.label, points: x.points || '' })), stepsMode: t.stepsMode || 'all', stepsBonus: t.stepsBonus || '', reopen: t.reopen || '', goalCount: t.goalCount || '', goalBonus: t.goalBonus || '' };
     S.sheet = sheetTask;
   },
   async deltpl(d) { await api(`templates/${d.id}`, 'DELETE'); S.templates = await api('templates'); },

@@ -231,3 +231,48 @@ test('sous-tâches avec points par sous-tâche : seules les validées rapportent
   tasks.declare(kid, m3.id);
   assert.equal(tasks.approve(m3.id, [m3.steps[0].id]).earned, 2, 'une sous-tâche écartée : pas de bonus');
 });
+
+test('tâche ouverte renouvelable : de retour le lendemain ou le lundi suivant', () => {
+  const { db } = require('../lib/db');
+  const kid = Number(db.prepare("INSERT INTO kids (name, age, pin_hash, palette, created_at) VALUES ('Nao', 9, 'x', 0, 1)").run().lastInsertRowid);
+  const day = tasks.create({ title: 'Cuisiner', kind: 'open', kids: [], reopen: 'week', points: 50 });
+  const open = () => tasks.forKid(kid).open.find((o) => o.taskId === day);
+  const occ = open();
+  assert.match(occ.label, /renouvelée chaque semaine/);
+  tasks.claim(kid, occ.id); tasks.declare(kid, occ.id); tasks.approve(occ.id);
+  assert.equal(open(), undefined, 'pas redisponible le jour même');
+  const next = db.prepare("SELECT * FROM occurrences WHERE task_id = ? AND status = 'todo'").get(day);
+  assert.equal(next.kid_id, null);
+  assert.equal(dates.weekday(next.due_date), 1, 'le lundi suivant');
+  assert.ok(next.due_date > dates.today());
+
+  const daily = tasks.create({ title: 'Plat du jour', kind: 'open', kids: [], reopen: 'day', points: 20 });
+  const o2 = tasks.forKid(kid).open.find((o) => o.taskId === daily);
+  tasks.claim(kid, o2.id); tasks.declare(kid, o2.id); tasks.approve(o2.id);
+  assert.equal(db.prepare("SELECT due_date FROM occurrences WHERE task_id = ? AND status = 'todo'").get(daily).due_date, dates.addDays(dates.today(), 1));
+  // sans renouvellement : rien de nouveau
+  const once = tasks.create({ title: 'Une fois', kind: 'open', kids: [], points: 5 });
+  const o3 = tasks.forKid(kid).open.find((o) => o.taskId === once);
+  tasks.claim(kid, o3.id); tasks.declare(kid, o3.id); tasks.approve(o3.id);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM occurrences WHERE task_id = ? AND status = 'todo'").get(once).n, 0);
+  assert.throws(() => tasks.clean({ title: 'X', points: 1, repeat: 'daily', goalCount: 9, goalBonus: 5 }), /de 1 à 7/);
+});
+
+test('objectif de la semaine : bonus une seule fois quand N validations sont atteintes', () => {
+  const { db } = require('../lib/db');
+  const points = require('../lib/points');
+  const kid = Number(db.prepare("INSERT INTO kids (name, age, pin_hash, palette, created_at) VALUES ('Ari', 14, 'x', 0, 1)").run().lastInsertRowid);
+  const id = tasks.create({ title: 'Douche', kids: [kid], repeat: 'daily', points: 10, goalCount: 4, goalBonus: 25 });
+  const today = dates.today(), ws = dates.weekStart(today);
+  const others = [0, 1, 2, 3, 4, 5, 6].map((i) => dates.addDays(ws, i)).filter((d) => d !== today);
+  for (const d of others.slice(0, 3)) db.prepare("INSERT OR REPLACE INTO occurrences (task_id, kid_id, due_date, status, points) VALUES (?, ?, ?, 'done', 10)").run(id, kid, d);
+  const occ = tasks.forKid(kid).today.find((o) => o.taskId === id);
+  tasks.declare(kid, occ.id);
+  const before = points.summary(kid).points;
+  const r = tasks.approve(occ.id);
+  assert.equal(r.goalBonus, 25);
+  assert.equal(points.summary(kid).points - before, 10 + 25 + r.awarded.reduce((n, a) => n + a.points, 0), 'tâche + objectif (+ bonus de série éventuel)');
+  // pas de second bonus la même semaine
+  db.prepare("INSERT OR REPLACE INTO occurrences (task_id, kid_id, due_date, status, points) VALUES (?, ?, ?, 'done', 10)").run(id, kid, others[3]);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM goal_awards WHERE kid_id = ?').get(kid).n, 1);
+});

@@ -138,3 +138,29 @@ test('journée parfaite fêtée une fois ; bravos avec autocollant', async () =>
   assert.equal(after.celebrate.kudos.length, 0, 'bravo vu : plus de célébration');
   assert.equal(after.kudos.length, 1, 'mais toujours dans la liste des bravos reçus');
 });
+
+test('série tolérante : pourcentage de missions par enfant ; bravo avec points bonus', async () => {
+  const { db } = require('../lib/db');
+  const parent = client(), kid = client();
+  await parent('login', 'POST', { email: 'p@x.be', password: 'motdepasse1' });
+  const k = (await parent('kids', 'POST', { name: 'Eli', pin: '5555' })).data.id;
+  await kid(`kids/${k}/login`, 'POST', { pin: '5555' });
+  const t1 = (await parent('tasks', 'POST', { title: 'T1', points: 5, kids: [k], repeat: 'daily' })).data.id;
+  const t2 = (await parent('tasks', 'POST', { title: 'T2', points: 5, kids: [k], repeat: 'daily' })).data.id;
+  const yesterday = dates.addDays(dates.today(), -1);
+  const ins = (t, st) => db.prepare('INSERT INTO occurrences (task_id, kid_id, due_date, status, points) VALUES (?, ?, ?, ?, 5)').run(t, k, yesterday, st);
+  ins(t1, 'done'); ins(t2, 'missed');
+  assert.equal(game.streak(k).days, 0, '50 % < 100 % : la série ne compte pas');
+  assert.equal((await parent(`kids/${k}`, 'PATCH', { streakMin: 5 })).status, 400);
+  assert.equal((await parent(`kids/${k}`, 'PATCH', { streakMin: 50 })).status, 200);
+  assert.equal(game.streak(k).days, 1, 'à 50 %, la veille compte');
+  assert.equal((await parent('kids')).data.find((x) => x.id === k).streakMin, 50);
+
+  assert.equal((await parent(`kids/${k}/kudos`, 'POST', { sticker: 'bravo', points: -5 })).status, 400);
+  const before = (await kid('me')).data.points;
+  assert.equal((await parent(`kids/${k}/kudos`, 'POST', { sticker: 'bravo', note: 'Top', points: 50 })).status, 201);
+  const me = (await kid('me')).data;
+  assert.equal(me.points - before, 50);
+  assert.equal(me.kudos[0].points, 50);
+  assert.equal(me.celebrate.kudos[0].points, 50);
+});

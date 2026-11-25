@@ -30,7 +30,7 @@ test('réglages, clé VAPID et abonnements conservés après redémarrage puis m
   // Mise à jour simulée : la base est en version 5 (les objets de la version 6 n'existent pas encore).
   run(dir, `
     const { DatabaseSync } = require('node:sqlite'); const c = new DatabaseSync(require('path').join(process.env.LATRIBU_DATA_DIR, 'latribu.db'));
-    c.exec('ALTER TABLE task_templates DROP COLUMN steps; ALTER TABLE task_templates DROP COLUMN steps_mode; ALTER TABLE task_templates DROP COLUMN steps_bonus; DELETE FROM task_templates WHERE id > 16; DROP TABLE kudos; ALTER TABLE kids DROP COLUMN perfect_seen; DROP TABLE occurrence_steps; DROP TABLE task_steps; DROP TABLE occurrence_photos; DROP TABLE task_templates; DROP TABLE trusted_devices; ALTER TABLE tasks DROP COLUMN steps_bonus; ALTER TABLE tasks DROP COLUMN steps_mode; ALTER TABLE tasks DROP COLUMN photo_required; ALTER TABLE rewards DROP COLUMN valid_from; ALTER TABLE rewards DROP COLUMN valid_until; ALTER TABLE rewards DROP COLUMN active; PRAGMA user_version = 5;'); c.close(); console.log('{}');`);
+    c.exec('ALTER TABLE task_templates DROP COLUMN steps; ALTER TABLE task_templates DROP COLUMN steps_mode; ALTER TABLE task_templates DROP COLUMN steps_bonus; DELETE FROM task_templates WHERE id > 16; DROP TABLE goal_awards; ALTER TABLE kids DROP COLUMN streak_min; ALTER TABLE tasks DROP COLUMN reopen; ALTER TABLE tasks DROP COLUMN goal_count; ALTER TABLE tasks DROP COLUMN goal_bonus; DROP TABLE kudos; ALTER TABLE kids DROP COLUMN perfect_seen; DROP TABLE occurrence_steps; DROP TABLE task_steps; DROP TABLE occurrence_photos; DROP TABLE task_templates; DROP TABLE trusted_devices; ALTER TABLE tasks DROP COLUMN steps_bonus; ALTER TABLE tasks DROP COLUMN steps_mode; ALTER TABLE tasks DROP COLUMN photo_required; ALTER TABLE rewards DROP COLUMN valid_from; ALTER TABLE rewards DROP COLUMN valid_until; ALTER TABLE rewards DROP COLUMN active; PRAGMA user_version = 5;'); c.close(); console.log('{}');`);
   const upgraded = run(dir, `
     const push = require('./lib/push'); const { db } = require('./lib/db');
     console.log(JSON.stringify({ n: push.notifSettings(), key: push.publicKey(), v: db.prepare('PRAGMA user_version').get().user_version,
@@ -38,7 +38,7 @@ test('réglages, clé VAPID et abonnements conservés après redémarrage puis m
       templates: db.prepare('SELECT COUNT(*) AS n FROM task_templates').get().n, subs: db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get().n }));`);
   assert.deepEqual(upgraded.n, first.n, 'réglages intacts après migration');
   assert.equal(upgraded.key, first.key, 'même clé VAPID : les abonnements existants restent valides');
-  assert.equal(upgraded.v, 11);
+  assert.equal(upgraded.v, 12);
   assert.equal(upgraded.tables, 3);
   assert.equal(upgraded.templates, 18, 'bibliothèque de modèles livrée');
   assert.equal(upgraded.subs, 1, 'abonnements push conservés');
