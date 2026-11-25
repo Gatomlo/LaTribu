@@ -200,3 +200,24 @@ test('modèles avec sous-tâches : exemples livrés, enregistrement et relecture
   const id = templates.create({ title: 'Perso', points: 4, repeat: 'daily', steps: ['x', 'y'] });
   assert.deepEqual(templates.list().find((t) => t.id === id).steps.map((s) => s.label), ['x', 'y']);
 });
+
+test('photo preuve : description de la photo souhaitée et envoi sans photo avec motif', async () => {
+  const { parent, kids: [a] } = await family(['Lou', 'Max']);
+  await parent('settings', 'PUT', { photo: { enabled: true, keepDays: 7 } });
+  const t = (await parent('tasks', 'POST', { title: 'Cuisine propre', points: 5, kids: [a.id], repeat: 'daily', photoRequired: true, photoHint: 'Le plan de travail dégagé, vu de face' })).data.id;
+  const listed = (await parent('tasks')).data.find((x) => x.id === t);
+  assert.equal(listed.photoHint, 'Le plan de travail dégagé, vu de face');
+  const occ = (await a.c('me/missions')).data.today.find((o) => o.taskId === t);
+  assert.equal(occ.photoHint, 'Le plan de travail dégagé, vu de face', 'montrée à l\'enfant');
+  assert.equal((await parent('tasks', 'POST', { title: 'Sans photo', points: 5, kids: [a.id], repeat: 'daily', photoHint: 'ignorée' })).status, 201);
+  assert.equal((await parent('tasks')).data.find((x) => x.title === 'Sans photo').photoHint, '', 'description gardée seulement si la photo est demandée');
+
+  assert.equal((await a.c(`occurrences/${occ.id}/done`, 'POST', {})).status, 400, 'toujours exigée sans motif');
+  assert.equal((await a.c(`occurrences/${occ.id}/done`, 'POST', { skipPhoto: true, photoNote: 'Le téléphone n\'avait plus de batterie' })).status, 200);
+  const r = (await parent('review')).data.find((o) => o.id === occ.id);
+  assert.equal(r.photoSkipped, 1);
+  assert.equal(r.photoNote, 'Le téléphone n\'avait plus de batterie');
+  assert.equal(r.hasPhoto, false);
+  assert.equal((await parent(`occurrences/${occ.id}/approve`, 'POST', {})).status, 200, 'le parent décide : il peut valider');
+  await parent('settings', 'PUT', { photo: { enabled: false } });
+});

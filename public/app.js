@@ -79,6 +79,7 @@ const heroAvatar = (k, s = 52) => ART.kidArt(k, s, palOf(k), { hero: true });
 // Aperçu d'un objet de la boutique porté par l'enfant (essayage) : { [emplacement]: illustration }.
 const tryOn = (x) => ({ [x.kind === 'accessory' ? x.slot : x.kind === 'avatar' ? 'avatar' : 'scene']: x.art });
 const logoBadge = () => `<div class="av" style="--s:64px;--c1:#6d5efc;--c2:#a78bfa;margin:0 auto 14px;border-radius:20px">${ic('home').replace('class="i"', 'class="i" style="width:32px;height:32px"')}</div>`;
+const todayStr = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Brussels' }).format(new Date());
 const kidName = (id) => (S.kids.find((k) => k.id === id) || { name: '?' }).name;
 // Prénom dans une pastille de la couleur de l'enfant ; sans enfant : « Non attribuée » ; « Tous » pour tous les enfants.
 const kidBadge = (id) => {
@@ -267,12 +268,12 @@ function renderParent(a, nav) {
   }
   if (S.tab === 'home') {
     a.innerHTML = `<h2>À valider</h2><p class="mini" style="margin-top:2px">${S.review.length + S.pending.length ? 'Des décisions t\'attendent.' : 'Rien à valider pour le moment.'}</p>${pushBanner()}<div class="sec">Missions déclarées (${S.review.length})</div>` +
-      (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${kidBadge(o.kidId)} ${dl(o.doneAt)}</small>${reviewSteps(o)}</div>${o.hasPhoto ? `<img class="thumb" src="api/occurrences/${o.id}/photo" alt="Photo" data-a="viewphoto" data-id="${o.id}">` : ''}<span class="pts">+${reviewPts(o)}</span></div>
+      (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${kidBadge(o.kidId)} ${dl(o.doneAt)}${o.dueDate && o.dueDate !== todayStr() ? `<span class="chip" style="padding:2px 7px;font-size:11px">Pour le ${frd(o.dueDate)}</span>` : ''}</small>${o.photoSkipped ? `<div class="mini" style="color:var(--ko);margin-top:3px">${ic('camera')} Photo non fournie${o.photoNote ? ' : ' + esc(o.photoNote) : ''}</div>` : ''}${reviewSteps(o)}</div>${o.hasPhoto ? `<img class="thumb" src="api/occurrences/${o.id}/photo" alt="Photo" data-a="viewphoto" data-id="${o.id}">` : ''}<span class="pts">+${reviewPts(o)}</span></div>
       <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusesheet" data-id="${o.id}">Refuser</button><button class="btn ok sp" data-a="approve" data-id="${o.id}">Valider</button></div>`).join('') || emptyCard('Aucune mission en attente.')) + purchasesSection();
   } else if (S.tab === 'tasks') {
     const shown = S.tasks.filter(taskMatch);
     const plan = shown.filter((t) => t.kind === 'plan'), open = shown.filter((t) => t.kind === 'open');
-    const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidBadge).join('') : kidBadge(null))} ${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}${t.steps && t.steps.length ? `<div class="mini" style="margin-top:3px">${t.steps.length} sous-tâche${t.steps.length > 1 ? 's' : ''}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
+    const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidBadge).join('') : kidBadge(null))} ${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}${t.photoRequired ? `<span class="chip" style="padding:2px 7px;font-size:11px" title="Photo preuve demandée">${ic('camera')}Photo</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}${t.steps && t.steps.length ? `<div class="mini" style="margin-top:3px">${t.steps.length} sous-tâche${t.steps.length > 1 ? 's' : ''}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
     a.innerHTML = `<div class="row" style="gap:8px"><h2 class="sp">Tâches</h2>${filterButton('tasks')}<button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div>${filterSummary('tasks')}<div class="sec">Planifiées (${plan.length})</div>${plan.map(row).join('') || emptyCard(S.tasks.length ? 'Aucune tâche pour ce filtre.' : 'Aucune tâche.')}<div class="sec">Ouvertes, sans date (${open.length})</div>${open.map(row).join('') || emptyCard('Aucune tâche ouverte.')}`;
   } else if (S.tab === 'kids') {
     a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div><button class="eyebtn" data-a="viewas" data-id="${k.id}" aria-label="Voir comme ${esc(k.name)}" title="Voir comme ${esc(k.name)}">${ic('eye')}</button></div>
@@ -342,6 +343,7 @@ function sheetTask() {
   ${open ? `<label>Renouvellement</label>${chips('fset', 'reopen', [['', 'Une seule fois'], ['day', 'Le lendemain'], ['week', 'La semaine suivante']], (v) => (F.reopen || '') === v)}<p class="mini" style="margin-top:6px">${F.reopen ? 'Quand elle est faite et validée, la tâche redevient disponible ' + (F.reopen === 'day' ? 'dès le lendemain.' : 'à partir du lundi suivant.') : 'La tâche disparaît une fois validée.'}</p>`
     : F.repeat !== 'date' ? `<label>Objectif de la semaine (facultatif)</label><div class="row"><input id="f_gc" type="number" inputmode="numeric" min="1" max="7" value="${esc(F.goalCount)}" placeholder="Fois / semaine" style="flex:1"><input id="f_gb" type="number" inputmode="numeric" min="1" value="${esc(F.goalBonus)}" placeholder="Bonus (pts)" style="flex:1"></div><p class="mini" style="margin-top:6px">Un bonus est accordé, une fois par semaine, quand la tâche est validée au moins ce nombre de fois (du lundi au dimanche).</p>` : ''}
   <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b></div>${sw(F.photoRequired)}</div>
+  ${F.photoRequired ? `<label>Photo souhaitée (facultatif)</label><textarea id="f_phint" rows="2" maxlength="200" placeholder="Ex. Le plan de travail dégagé, vu de face">${esc(F.photoHint)}</textarea><p class="mini" style="margin-top:4px">L'enfant le lit quand la photo lui est demandée.</p>` : ''}
   ${open ? '' : `<label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
   <input id="f_rt" type="time" value="${esc(F.remindAt)}" style="margin-top:8px">`}
   <button class="btn full" style="margin-top:18px" data-a="savetask">${F.id ? 'Enregistrer' : 'Créer la tâche'}</button>
@@ -685,12 +687,13 @@ async function qFlush() {
   } finally { flushing = false; }
   if (sent) { toast(`${sent} mission${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''} aux parents`); try { await loadData(); } catch { /* réessai plus tard */ } render(); }
 }
-async function submitMission(id, photo) {
+async function submitMission(id, photo, skip) {
+  const body = photo ? { photo } : skip ? { skipPhoto: true, photoNote: skip.note || '' } : {};
   try {
-    await api(`occurrences/${id}/done`, 'POST', photo ? { photo } : {}); confetti(); beep(); toast('Envoyé aux parents pour validation');
+    await api(`occurrences/${id}/done`, 'POST', body); confetti(); beep(); toast('Envoyé aux parents pour validation');
   } catch (e) {
     if (!e.network) throw e;
-    qSave([...qLoad(), { kid: S.session.kid.id, occ: id, path: `occurrences/${id}/done`, body: photo ? { photo } : {} }]);
+    qSave([...qLoad(), { kid: S.session.kid.id, occ: id, path: `occurrences/${id}/done`, body }]);
     applyQueued(); kidCacheSave(); toast('Hors connexion : la mission partira dès le retour du réseau.');
   }
 }
@@ -700,6 +703,15 @@ function readyBanner() {
   const r = readyToSend();
   if (!r.length || S.viewAs) return '';
   return `<div class="card ready-card">${ic('check')}<div class="sp"><b>${r.length > 1 ? r.length + ' missions commencées' : 'Mission commencée'}</b><div class="mini">N'oublie pas d'appuyer sur la grande case ✓ pour l'envoyer à tes parents : ${r.map((o) => esc(o.title)).join(', ')}.</div></div></div>`;
+}
+// Photo demandée : on montre d'abord ce que les parents souhaitent voir ; si la photo est impossible (trop tard, plus de téléphone...),
+// l'enfant peut envoyer sans photo en donnant un motif que le parent verra.
+function openPhotoAsk(m) { S.F = { occ: m.id, hint: m.photoHint || '', skip: false, note: '' }; S.sheet = sheetPhotoAsk; }
+function sheetPhotoAsk() {
+  const F = S.F;
+  return `<h2>${ic('camera')} Photo demandée</h2>${F.hint ? `<div class="card" style="margin-top:10px"><b>Ce que tes parents veulent voir</b><div style="margin-top:4px;font-size:16px">${esc(F.hint)}</div></div>` : '<p class="mini" style="margin-top:8px">Prends une photo de ce que tu as fait.</p>'}
+  ${F.skip ? `<label>Pourquoi ne peux-tu pas la prendre ?</label><textarea id="f_pnote" rows="2" maxlength="140" placeholder="Ex. Je n'ai plus mon téléphone">${esc(F.note)}</textarea><button class="btn full" style="margin-top:12px" data-a="sendnophoto">Envoyer sans photo</button><button class="btn ghost full" style="margin-top:8px" data-a="photoback">Retour</button>`
+    : `<button class="btn full" style="margin-top:16px" data-a="takephoto">${ic('camera')} Prendre la photo</button><button class="btn ghost full" style="margin-top:8px" data-a="photoskip">Je ne peux pas prendre la photo</button>`}`;
 }
 function offlineBanner() {
   const n = qLoad().length;
@@ -721,6 +733,8 @@ function readInputs() {
   if (g('f_date')) F.date = g('f_date').value;
   if (g('f_rt')) F.remindAt = g('f_rt').value;
   if (g('f_sbonus')) F.stepsBonus = g('f_sbonus').value;
+  if (g('f_phint')) F.photoHint = g('f_phint').value;
+  if (g('f_pnote')) F.note = g('f_pnote').value;
   if (g('f_gc')) F.goalCount = g('f_gc').value;
   if (g('f_gb')) F.goalBonus = g('f_gb').value;
   if (g('f_kpts')) F.kpts = g('f_kpts').value;
@@ -737,8 +751,8 @@ function readInputs() {
   if (g('f_stock')) F.stock = g('f_stock').value;
 }
 const val = (id) => (document.getElementById(id) || {}).value || '';
-const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false, steps: [], stepsMode: 'all', stepsBonus: '', reopen: '', goalCount: '', goalBonus: '' });
-const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, steps: (F.steps || []).filter((x) => x.label.trim()).map((x) => ({ id: x.id, label: x.label, points: Number(x.points) || 0 })), stepsMode: (F.steps || []).some((x) => x.label.trim()) ? F.stepsMode : 'all', stepsBonus: Number(F.stepsBonus) || 0, reopen: F.kind === 'open' ? F.reopen || null : null, goalCount: Number(F.goalCount) || 0, goalBonus: Number(F.goalBonus) || 0 });
+const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false, photoHint: '', steps: [], stepsMode: 'all', stepsBonus: '', reopen: '', goalCount: '', goalBonus: '' });
+const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, photoHint: F.photoRequired ? F.photoHint || '' : '', steps: (F.steps || []).filter((x) => x.label.trim()).map((x) => ({ id: x.id, label: x.label, points: Number(x.points) || 0 })), stepsMode: (F.steps || []).some((x) => x.label.trim()) ? F.stepsMode : 'all', stepsBonus: Number(F.stepsBonus) || 0, reopen: F.kind === 'open' ? F.reopen || null : null, goalCount: Number(F.goalCount) || 0, goalBonus: Number(F.goalBonus) || 0 });
 
 // ---------- Actions ----------
 const A = {
@@ -815,7 +829,7 @@ const A = {
   newtask() { S.F = blankTask(); S.sheet = sheetTask; },
   edittask(d) {
     const t = S.tasks.find((x) => x.id === Number(d.id));
-    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired, steps: (t.steps || []).map((x) => ({ ...x })), stepsMode: t.stepsMode || 'all', stepsBonus: t.stepsBonus || '', reopen: t.reopen || '', goalCount: t.goalCount || '', goalBonus: t.goalBonus || '' };
+    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired, photoHint: t.photoHint || '', steps: (t.steps || []).map((x) => ({ ...x })), stepsMode: t.stepsMode || 'all', stepsBonus: t.stepsBonus || '', reopen: t.reopen || '', goalCount: t.goalCount || '', goalBonus: t.goalBonus || '' };
     S.sheet = sheetTask;
   },
   async savetask() {
@@ -914,26 +928,31 @@ const A = {
   // enfant
   async done(d) {
     const m = S.missions.today.find((o) => o.id === Number(d.id));
-    let photo = null;
-    if (m && m.photoRequired) { photo = await pickPhoto(); if (!photo) return; } // le sélecteur s'ouvre dans le geste de l'utilisateur
-    await submitMission(Number(d.id), photo);
+    if (m && m.photoRequired) return openPhotoAsk(m); // d'abord le descriptif de la photo souhaitée
+    await submitMission(Number(d.id), null);
   },
   // Cocher la DERNIÈRE sous-tâche envoie aussitôt la mission aux parents : l'enfant n'a pas à penser à appuyer sur « fait ».
   async step(d) {
     const m = S.missions.today.find((o) => o.id === Number(d.id));
     const completing = !!m && d.on === '1' && m.steps.every((x) => x.checked || x.id === Number(d.step));
-    let photo = null;
-    if (completing && m.photoRequired) photo = await pickPhoto(); // dans le geste de l'utilisateur ; sans photo : coché mais pas envoyé
     await api(`occurrences/${d.id}/steps/${d.step}`, 'PUT', { checked: d.on === '1' });
-    if (completing && (!m.photoRequired || photo)) await submitMission(Number(d.id), photo);
+    if (completing) { if (m.photoRequired) openPhotoAsk(m); else await submitMission(Number(d.id), null); }
   },
+  async takephoto() { // le sélecteur s'ouvre dans le geste de l'utilisateur (premier appel de cette action)
+    const photo = await pickPhoto();
+    if (!photo) return;
+    S.sheet = null; await submitMission(S.F.occ, photo);
+  },
+  photoskip() { S.F.skip = true; },
+  photoback() { S.F.skip = false; },
+  async sendnophoto() { const f = S.F; S.sheet = null; await submitMission(f.occ, null, { note: f.note }); },
   async claim(d) { await api(`occurrences/${d.id}/claim`, 'POST', {}); toast('Mission ajoutée à ta liste'); },
 };
 
 // Actions qui ne changent que le formulaire ouvert : pas de rechargement des données, la fiche est mise à jour sur place
 // (même élément, même défilement, aucune animation d'ouverture rejouée).
 const VIEW_OK = new Set(['tab', 'shopseg', 'stats', 'statnav', 'sound', 'closesheet', 'exitview']); // seules actions permises en aperçu parent
-const LOCAL = new Set(['taskkid', 'taskmoment', 'shopkid', 'shoplimit', 'filterreset', 'fset', 'ftoggle', 'fall', 'fnone', 'kpick', 'fphoto', 'addstep', 'delstep', 'fshared', 'ractive', 'quick', 'ipick', 'icat', 'ichoose', 'iuse']);
+const LOCAL = new Set(['photoskip', 'photoback', 'taskkid', 'taskmoment', 'shopkid', 'shoplimit', 'filterreset', 'fset', 'ftoggle', 'fall', 'fnone', 'kpick', 'fphoto', 'addstep', 'delstep', 'fshared', 'ractive', 'quick', 'ipick', 'icat', 'ichoose', 'iuse']);
 function renderSheetInPlace() {
   const sh = S.sheet && document.querySelector('.sheet-bg .sheet');
   if (!sh) return false;
