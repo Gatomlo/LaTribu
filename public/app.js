@@ -198,7 +198,7 @@ function byMoment(list) {
 function histRow(h) {
   return `<div class="line"><div class="sp"><b style="font-size:14px;font-weight:500">${esc(h.label)}</b><div class="mini">${dl(h.at)}</div></div><span class="pts ${h.delta < 0 ? 'neg' : ''}">${h.delta > 0 ? '+' : ''}${h.delta}</span></div>`;
 }
-const kudosCard = () => (S.me.kudos && S.me.kudos.length ? `<div class="sec">Bravos reçus</div>${S.me.kudos.slice(0, 3).map((k) => `<div class="line"><div style="font-size:26px">${esc(k.emoji)}</div><div class="sp"><b style="font-size:14px">${esc(k.label)}</b><div class="mini">${k.note ? esc(k.note) + ' · ' : ''}${dl(k.at)}</div></div></div>`).join('')}` : '');
+const kudosCard = () => (S.me.kudos && S.me.kudos.length ? `<div class="sec">Bravos reçus</div>${S.me.kudos.slice(0, 3).map((k) => `<div class="line"><div style="width:52px;flex:none">${stk(k.sticker)}</div><div class="sp"><b style="font-size:14px">${esc(k.label)}</b><div class="mini">${k.note ? esc(k.note) + ' · ' : ''}${dl(k.at)}</div></div></div>`).join('')}` : '');
 function renderKid(a, nav) {
   const m = S.me;
   nav.innerHTML = tabs([['home', 'home', 'Accueil'], ['missions', 'target', 'Missions'], ['shop', 'bag', 'Magasin'], ['me', 'user', 'Moi']], S.tab);
@@ -493,13 +493,33 @@ function sheetCelebrate() {
   return `<div style="text-align:center"><div style="font-size:54px">${head[0]}</div><h2 style="margin-top:6px">${esc(head[1])}</h2>${head[2] ? `<p class="mini" style="margin-top:4px">${head[2]}</p>` : ''}
   ${c.perfectDay && c.levelUp ? `<p style="margin-top:10px"><b>Niveau ${c.levelUp} !</b></p>` : ''}
   ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div>` : (c.perfectDay || c.kudos.length ? '' : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>')}
-  ${c.kudos.map((k) => `<div class="card" style="margin-top:12px;display:flex;gap:12px;align-items:center;text-align:left"><div style="font-size:34px">${esc(k.emoji)}</div><div class="sp"><b>${esc(k.label)}</b><div class="mini">De tes parents${k.note ? ' : ' + esc(k.note) : ''}</div></div></div>`).join('')}
+  ${c.kudos.map((k) => `<div class="card" style="margin-top:12px;display:flex;gap:12px;align-items:center;text-align:left"><div style="width:64px;flex:none">${stk(k.sticker)}</div><div class="sp"><b>${esc(k.label)}</b><div class="mini">De tes parents${k.note ? ' : ' + esc(k.note) : ''}</div></div></div>`).join('')}
   <button class="btn full" style="margin-top:18px" data-a="celebrated">Super !</button></div>`;
 }
+// ---------- Autocollants (dessinés en SVG, sans fichier image) ----------
+const starPts = (cx, cy, ro, ri, n, rot = -90) => Array.from({ length: n * 2 }, (_, i) => { const r = i % 2 ? ri : ro, a = (rot + i * 180 / n) * Math.PI / 180; return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; }).join(' ');
+const HEART = 'M50 64C14 42 18 10 38 14C45 15.500 50 21 50 23C50 21 55 15.500 62 14C82 10 86 42 50 64Z';
+const STK = {
+  bravo: { lines: ['BRAVO !'], art: `<polygon points="${starPts(50, 38, 35, 16, 5)}" fill="#FFC93C" stroke="#F5A800" stroke-width="2" stroke-linejoin="round"/><path d="M44 30l2.500 5 5 2.500-5 2.500-2.500 5-2.500-5-5-2.500 5-2.500z" fill="#fff" opacity=".9"/>` },
+  trop_fort: { lines: ['TROP', 'FORT !'], art: `<polygon points="${starPts(50, 36, 34, 25, 11)}" fill="#7C4DFF" stroke="#5E35D8" stroke-width="2" stroke-linejoin="round"/><polygon points="54,14 39,40 49,40 44,60 63,32 52,32" fill="#FFD23F" stroke="#F5A800" stroke-width="1.500" stroke-linejoin="round"/>` },
+  youpi: { lines: ['YOUPI !'], art: `${[0, 1, 2, 3, 4, 5, 6, 7].map((i) => `<circle cx="${(50 + 23 * Math.cos(i * Math.PI / 4)).toFixed(1)}" cy="${(38 + 23 * Math.sin(i * Math.PI / 4)).toFixed(1)}" r="12" fill="#FF5FA2"/>`).join('')}<circle cx="50" cy="38" r="26" fill="#FF5FA2"/><circle cx="42" cy="30" r="2.500" fill="#FFD23F"/><circle cx="58" cy="44" r="2.500" fill="#4DD0E1"/><rect x="52" y="26" width="9" height="3.500" rx="1.700" fill="#fff" transform="rotate(35 56 28)"/><rect x="36" y="42" width="9" height="3.500" rx="1.700" fill="#FFD23F" transform="rotate(-30 40 44)"/><path d="M45 47q5 7 10 0" stroke="#fff" stroke-width="2.500" fill="none" stroke-linecap="round"/>` },
+  genial: { lines: ['GÉNIAL !'], art: `<rect x="14" y="6" width="72" height="64" rx="18" fill="#1FBFA8"/><circle cx="50" cy="34" r="13" fill="#FFD23F"/><rect x="44" y="45" width="12" height="9" rx="2.500" fill="#fff"/><path d="M45 31q2-5 7-4" stroke="#fff" stroke-width="2.500" fill="none" stroke-linecap="round" opacity=".8"/><path d="M26 22l6 4M74 22l-6 4M50 12v5M28 40h6M72 40h-6" stroke="#fff" stroke-width="3" stroke-linecap="round"/>` },
+  super_boulot: { lines: ['SUPER', 'BOULOT !'], art: `<polygon points="${starPts(50, 38, 35, 31, 14)}" fill="#FFB52E"/><circle cx="50" cy="38" r="29" fill="#FFA51F"/><path d="M39 22h22v11a11 11 0 0 1-22 0z" fill="#fff"/><path d="M39 25h-6q0 9 7 10M61 25h6q0 9-7 10" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="47" y="44" width="6" height="6" fill="#fff"/><rect x="41" y="50" width="18" height="4.500" rx="2" fill="#fff"/>` },
+  continue: { lines: ['CONTINUE', 'COMME ÇA !'], art: `<circle cx="50" cy="38" r="33" fill="#2DBE6C"/><path d="M28 52l15-14 9 8 17-18" stroke="#fff" stroke-width="5.500" fill="none" stroke-linecap="round" stroke-linejoin="round"/><polygon points="58,26 74,26 74,42" fill="#fff"/>` },
+  merci: { lines: ['MERCI !'], art: `<path d="${HEART}" fill="#F0434F" transform="translate(0 -2)"/><path d="M33 22q6-4 11 2" stroke="#fff" stroke-width="3.500" fill="none" stroke-linecap="round" opacity=".85"/>` },
+  gros_calin: { lines: ['GROS CÂLIN'], art: `<path d="${HEART}" fill="#F58BB5" transform="translate(0 -2)"/><path d="${HEART}" fill="#fff" transform="translate(30.500 17) scale(.39)"/><path d="${HEART}" fill="#FFC93C" transform="translate(51 26) scale(.2)"/>` },
+};
+function stk(key, extra = '') {
+  const d = STK[key];
+  if (!d) return '<span aria-hidden="true">⭐</span>';
+  const two = d.lines.length > 1, h = two ? 25 : 15, w = Math.min(98, Math.max(...d.lines.map((l) => l.length)) * 6.6 + 14), y = 100 - h - 1;
+  return `<svg class="stkimg" viewBox="0 0 100 100" role="img" aria-label="${esc(d.lines.join(' '))}" ${extra}>${d.art}<rect x="${(50 - w / 2).toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="${h}" rx="6" fill="#2A2418"/>${d.lines.map((l, i) => `<text x="50" y="${y + (two ? 10.500 + i * 10 : 10.500)}" font-size="${two ? 9 : 9.500}" font-weight="800" fill="#fff" text-anchor="middle" font-family="inherit">${l}</text>`).join('')}</svg>`;
+}
+
 function sheetKudos() {
   const F = S.F;
   return `<h2>Encourager ${esc(kidName(F.id))}</h2><p class="mini" style="margin-top:2px">${esc(kidName(F.id))} le reçoit en notification et dans son espace.</p>
-  <div class="opts" style="margin-top:12px">${S.stickers.map((x) => `<button class="${F.sticker === x.key ? 'on' : ''}" data-a="kpick" data-v="${x.key}" style="font-size:15px">${esc(x.emoji)} ${esc(x.label)}</button>`).join('')}</div>
+  <div class="stkgrid">${S.stickers.map((x) => `<button class="${F.sticker === x.key ? 'on' : ''}" data-a="kpick" data-v="${x.key}" aria-label="${esc(x.label)}" aria-pressed="${F.sticker === x.key}">${stk(x.key)}</button>`).join('')}</div>
   <label>Un mot (facultatif)</label><input id="f_knote" maxlength="140" value="${esc(F.note)}" placeholder="Ex. Merci d'avoir aidé ton frère">
   <button class="btn full" style="margin-top:18px" data-a="sendkudos">Envoyer le bravo</button>`;
 }
