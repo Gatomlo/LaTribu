@@ -122,3 +122,14 @@ input:focus{outline:2px solid var(--acc);border-color:transparent}
 .fcount{background:var(--acc);color:#fff;border-radius:999px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:6px}
 .fsum{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .fsum button{font-size:12px;font-weight:600;color:var(--acc);padding:4px 8px}
+
+/* Case « fait » : grande, à gauche de la mission, avec une coche pâle quand elle est vide ; titre barré une fois fait ou envoyé */
+.chk{width:54px;height:54px;border-radius:16px;border-width:2.5px}
+.chk svg{width:30px;height:30px;stroke-width:3.5}
+.chk.todo,.chk.refused{color:var(--acc);background:var(--card)}
+.chk.todo svg,.chk.refused svg{opacity:.28}
+.chk:disabled{border-color:var(--line);color:var(--mute);cursor:not-allowed}.chk:disabled svg{opacity:.2}
+.task.mission.wait b,.task.mission.done b{text-decoration:line-through;text-decoration-thickness:2px;color:var(--mute)}
+.task.mission{align-items:flex-start}
+.task.mission .chk{margin-top:1px}
+.task.mission .pts{margin-top:4px}

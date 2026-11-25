@@ -196,11 +196,12 @@ function reviewSteps(o) {
 }
 function missionRow(o, interactive) {
   const st = o.status, can = interactive && (st === 'todo' || st === 'refused');
-  const icon = st === 'done' ? ic('check') : st === 'wait' ? ic('clock') : '';
-  return `<div class="task ${st === 'refused' ? '' : st}"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b>
+  const icon = st === 'wait' ? ic('clock') : ic('check'); // case vide : une coche pâle invite à toucher ; pleine quand c'est fait
+  const box = interactive ? `<button class="chk ${st}" data-a="done" data-id="${o.id}" aria-label="${st === 'todo' || st === 'refused' ? 'Marquer comme fait' : st === 'wait' ? 'Envoyé aux parents' : 'Validé'}" ${can && (!o.steps || !o.steps.length || (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked))) ? '' : 'disabled'}>${icon}</button>` : '';
+  return `<div class="task mission ${st === 'refused' ? '' : st}">${box}${interactive ? '' : `<div class="ic">${esc(o.icon)}</div>`}<div class="sp"><b>${interactive ? esc(o.icon) + ' ' : ''}${esc(o.title)}</b>
     <small>${esc(o.label)}${o.photoRequired && (st === 'todo' || st === 'refused') ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('camera')}Photo</span>` : ''}${o.queued ? '<span class="chip" style="padding:2px 7px;font-size:11px">En attente d\'envoi</span>' : ''}${o.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(o.remindAt)}</span>` : ''}</small>
     ${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}${st === 'refused' ? `<div class="mini" style="margin-top:3px;color:var(--ko)">Refusé${o.note ? ' : ' + esc(o.note) : ''}. À refaire.</div>` : ''}${stepList(o, can)}</div>
-    <span class="pts">+${o.points}</span>${interactive ? `<button class="chk ${st}" data-a="done" data-id="${o.id}" ${can && (!o.steps || !o.steps.length || (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked))) ? '' : 'disabled'}>${icon}</button>` : ''}</div>`;
+    <span class="pts">+${o.points}</span></div>`;
 }
 function byMoment(list) {
   const now = new Date().getHours(), cur = now < 12 ? 'matin' : now < 18 ? 'apres' : 'soir';
