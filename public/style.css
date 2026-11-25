@@ -111,3 +111,6 @@ input:focus{outline:2px solid var(--acc);border-color:transparent}
 .look{display:flex;gap:14px;align-items:center;margin-top:12px}
 .item .kav{margin:0 auto 6px}
 .item .btn.on{background:var(--ok);color:#fff}
+
+.eyebtn{width:38px;height:38px;border-radius:50%;background:#ffffff2e;color:#fff;display:grid;place-items:center;flex:none;align-self:flex-start}
+.eyebtn .i{width:20px;height:20px}
