@@ -267,3 +267,9 @@ input,textarea{background:#fff;border-radius:14px}
 
 /* l'avatar garde un liseré blanc : il ne se fond jamais dans la couleur de la carte qui le porte */
 .hero .kav{border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+
+/* Carte de récompense : icône et disponibilité (« 1 par jour ») sur la même ligne, la description garde toute la largeur */
+.rhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:30px}
+.rhead .e{font-size:30px;line-height:1}
+.rchips{display:flex;gap:6px;flex-wrap:wrap}
+.item .rchips .chip{font-size:11px;padding:3px 8px}
