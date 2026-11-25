@@ -166,3 +166,30 @@ test('deux axes : planifiée/ouverte x enfants choisis/non attribuée', async ()
   // enfant inconnu refusé
   assert.equal((await parent('tasks', 'POST', { title: 'X', points: 5, kids: [9999], repeat: 'daily' })).status, 400);
 });
+
+test('sous-tâches : cochées par l\'enfant, exigées avant « fait », visibles à la validation', async () => {
+  const stepsApp = tasks.clean({ title: 'Cuisine', points: 5, kids: [], repeat: 'daily', steps: ['A', ' ', 'B'] });
+  assert.deepEqual(stepsApp.steps.map((s) => s.label), ['A', 'B']);
+  assert.throws(() => tasks.clean({ title: 'X', points: 1, repeat: 'daily', steps: 'a' }));
+  assert.throws(() => tasks.clean({ title: 'X', points: 1, repeat: 'daily', steps: Array(13).fill('a') }));
+
+  const kidA = require('../lib/db').db.prepare("INSERT INTO kids (name, age, pin_hash, palette, created_at) VALUES ('Zoé', 8, 'x', 0, 1)").run().lastInsertRowid;
+  const id = tasks.create({ title: 'Ranger la cuisine', points: 5, kind: 'open', kids: [Number(kidA)], steps: ['Lave-vaisselle', 'Plan de travail'] });
+  const mission = tasks.forKid(Number(kidA)).today.find((o) => o.taskId === id);
+  assert.equal(mission.steps.length, 2);
+  assert.throws(() => tasks.declare(Number(kidA), mission.id), /sous-tâches/);
+  tasks.toggleStep(Number(kidA), mission.id, mission.steps[0].id, true);
+  assert.throws(() => tasks.declare(Number(kidA), mission.id), /sous-tâches/);
+  tasks.toggleStep(Number(kidA), mission.id, mission.steps[1].id, true);
+  tasks.toggleStep(Number(kidA), mission.id, mission.steps[1].id, false);
+  tasks.toggleStep(Number(kidA), mission.id, mission.steps[1].id, true);
+  // une étape d'une autre tâche est refusée
+  assert.throws(() => tasks.toggleStep(Number(kidA), mission.id, 999999, true), /introuvable/);
+  tasks.declare(Number(kidA), mission.id);
+  assert.deepEqual(tasks.review().find((o) => o.id === mission.id).steps.map((s) => s.checked), [true, true]);
+  // modification : l'id d'une étape conservée garde sa case cochée
+  const t = tasks.list().find((x) => x.id === id);
+  tasks.update(id, { ...t, steps: [{ id: t.steps[0].id, label: 'Lave-vaisselle vidé' }] });
+  const after = tasks.review().find((o) => o.id === mission.id);
+  assert.deepEqual(after.steps.map((s) => [s.label, s.checked]), [['Lave-vaisselle vidé', true]]);
+});
