@@ -180,13 +180,15 @@ function stepList(o, can) {
   const n = o.steps.filter((x) => x.checked).length, each = o.stepsMode === 'each', done = o.status === 'done';
   // Case à gauche de chaque sous-tâche : vide, cochée, ou croix (non validée par le parent).
   const box = (x) => (done && each && !x.approved ? `<span class="sbox lost" aria-hidden="true">${ic('x')}</span>` : `<span class="sbox ${x.checked ? 'on' : ''}" aria-hidden="true">${x.checked ? ic('check') : ''}</span>`);
-  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="sstep ${x.checked ? 'ck' : ''}" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'}>${box(x)}<span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · non faites : 0 pt' : ''}${each && o.stepsBonus ? ` · bonus +${o.stepsBonus} si tout est fait` : ''}</div></div>`;
+  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="sstep ${x.checked ? 'ck' : ''}" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'}>${box(x)}<span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · non faites : 0 pt' : ''}${each && o.stepsBonus ? ` · bonus +${o.stepsBonus} si tout est fait` : ''}</div>${can && each && n > 0 && n < o.steps.length ? '<div class="mini send-hint">Quand tu as fini, appuie sur la grande case ✓ pour envoyer.</div>' : ''}${can && n === o.steps.length ? '<div class="mini send-hint">Tout est coché : appuie sur la grande case ✓ pour envoyer.</div>' : ''}</div>`;
 }
 // Mission de l'enfant : icône de la tâche en haut à gauche, grande case « fait » à droite, sous-tâches sur toute la largeur dessous.
 function missionRow(o, interactive) {
   const st = o.status, can = interactive && (st === 'todo' || st === 'refused');
   const icon = st === 'wait' ? ic('clock') : ic('check'); // case vide : une coche pâle invite à toucher ; pleine quand c'est fait
-  const box = interactive ? `<button class="chk ${st}" data-a="done" data-id="${o.id}" aria-label="${st === 'todo' || st === 'refused' ? 'Marquer comme fait' : st === 'wait' ? 'Envoyé aux parents' : 'Validé'}" ${can && (!o.steps || !o.steps.length || (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked))) ? '' : 'disabled'}>${icon}</button>` : '';
+  const sendable = can && (!o.steps || !o.steps.length || (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked)));
+  const ready = sendable && o.steps && o.steps.length > 0; // sous-tâches faites (en tout ou en partie) mais pas encore envoyées
+  const box = interactive ? `<button class="chk ${st}${ready ? ' ready' : ''}" data-a="done" data-id="${o.id}" aria-label="${st === 'todo' || st === 'refused' ? 'Marquer comme fait' : st === 'wait' ? 'Envoyé aux parents' : 'Validé'}" ${sendable ? '' : 'disabled'}>${icon}</button>` : '';
   const pts = `<span class="pts">+${o.points}</span>`;
   return `<div class="task mission ${st === 'refused' ? '' : st}"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b>
     <small>${interactive ? pts : ''}${esc(o.label)}${o.photoRequired && (st === 'todo' || st === 'refused') ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('camera')}Photo</span>` : ''}${o.queued ? '<span class="chip" style="padding:2px 7px;font-size:11px">En attente d\'envoi</span>' : ''}${o.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(o.remindAt)}</span>` : ''}</small>
@@ -214,7 +216,7 @@ function renderKid(a, nav) {
   const preview = S.viewAs ? `<div style="position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;background:#2a2418;color:#fff;padding:8px 8px 8px 14px;border-radius:12px;margin-bottom:10px;font-size:13px">${ic('user')}<span class="sp">Vue de <b>${esc(m.name)}</b> · lecture seule</span><button class="btn sm" data-a="exitview">Quitter</button></div>` : '';
   if (S.tab === 'home') {
     const done = M.today.filter((o) => o.status === 'done').length;
-    a.innerHTML = hero + offlineBanner() + pushBanner() + kudosCard() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
+    a.innerHTML = hero + offlineBanner() + readyBanner() + pushBanner() + kudosCard() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
       : '<div class="card mini" style="margin-top:14px;text-align:center">Rien de prévu aujourd\'hui. Jette un œil aux missions à prendre.</div>');
   } else if (S.tab === 'missions') {
     a.innerHTML = `<h2>Missions</h2><div class="sec">À prendre</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${o.kind === 'open' ? 'Sans date' : 'Pour aujourd\'hui'} · premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Rien à prendre pour le moment.'))
@@ -683,6 +685,22 @@ async function qFlush() {
   } finally { flushing = false; }
   if (sent) { toast(`${sent} mission${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''} aux parents`); try { await loadData(); } catch { /* réessai plus tard */ } render(); }
 }
+async function submitMission(id, photo) {
+  try {
+    await api(`occurrences/${id}/done`, 'POST', photo ? { photo } : {}); confetti(); beep(); toast('Envoyé aux parents pour validation');
+  } catch (e) {
+    if (!e.network) throw e;
+    qSave([...qLoad(), { kid: S.session.kid.id, occ: id, path: `occurrences/${id}/done`, body: photo ? { photo } : {} }]);
+    applyQueued(); kidCacheSave(); toast('Hors connexion : la mission partira dès le retour du réseau.');
+  }
+}
+// Missions à sous-tâches commencées mais pas envoyées (points par sous-tâche : l'envoi reste manuel tant que tout n'est pas coché).
+const readyToSend = () => S.missions.today.filter((o) => (o.status === 'todo' || o.status === 'refused') && o.steps && o.steps.length && (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked)));
+function readyBanner() {
+  const r = readyToSend();
+  if (!r.length || S.viewAs) return '';
+  return `<div class="card ready-card">${ic('check')}<div class="sp"><b>${r.length > 1 ? r.length + ' missions commencées' : 'Mission commencée'}</b><div class="mini">N'oublie pas d'appuyer sur la grande case ✓ pour l'envoyer à tes parents : ${r.map((o) => esc(o.title)).join(', ')}.</div></div></div>`;
+}
 function offlineBanner() {
   const n = qLoad().length;
   if (!S.offline && !n) return '';
@@ -898,15 +916,17 @@ const A = {
     const m = S.missions.today.find((o) => o.id === Number(d.id));
     let photo = null;
     if (m && m.photoRequired) { photo = await pickPhoto(); if (!photo) return; } // le sélecteur s'ouvre dans le geste de l'utilisateur
-    try {
-      await api(`occurrences/${d.id}/done`, 'POST', photo ? { photo } : {}); confetti(); beep(); toast('Envoyé aux parents pour validation');
-    } catch (e) {
-      if (!e.network) throw e;
-      qSave([...qLoad(), { kid: S.session.kid.id, occ: Number(d.id), path: `occurrences/${d.id}/done`, body: photo ? { photo } : {} }]);
-      applyQueued(); kidCacheSave(); toast('Hors connexion : la mission partira dès le retour du réseau.');
-    }
+    await submitMission(Number(d.id), photo);
   },
-  async step(d) { await api(`occurrences/${d.id}/steps/${d.step}`, 'PUT', { checked: d.on === '1' }); },
+  // Cocher la DERNIÈRE sous-tâche envoie aussitôt la mission aux parents : l'enfant n'a pas à penser à appuyer sur « fait ».
+  async step(d) {
+    const m = S.missions.today.find((o) => o.id === Number(d.id));
+    const completing = !!m && d.on === '1' && m.steps.every((x) => x.checked || x.id === Number(d.step));
+    let photo = null;
+    if (completing && m.photoRequired) photo = await pickPhoto(); // dans le geste de l'utilisateur ; sans photo : coché mais pas envoyé
+    await api(`occurrences/${d.id}/steps/${d.step}`, 'PUT', { checked: d.on === '1' });
+    if (completing && (!m.photoRequired || photo)) await submitMission(Number(d.id), photo);
+  },
   async claim(d) { await api(`occurrences/${d.id}/claim`, 'POST', {}); toast('Mission ajoutée à ta liste'); },
 };
 
