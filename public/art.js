@@ -122,7 +122,8 @@
   // opts.hero : posé sur une carte colorée (fond translucide, tête blanche par défaut).
   function kidArt(k, size, pal, opts = {}) {
     const look = { ...(k.look || {}), ...(opts.look || {}) };
-    const bg = look.scene && SCENES[look.scene] ? SCENES[look.scene] : `<rect width="100" height="100" fill="${opts.hero ? '#ffffff2e' : pal[0] + '26'}"/>`;
+    // Fond opaque (blanc teinté) : l'avatar ne se fond jamais dans la couleur de la carte qui le porte.
+    const bg = look.scene && SCENES[look.scene] ? SCENES[look.scene] : `<rect width="100" height="100" fill="#fff"/><rect width="100" height="100" fill="${opts.hero ? '#ffffff59' : pal[0] + '26'}"/>`;
     const av = look.avatar && AVATARS[look.avatar] ? AVATARS[look.avatar]() : AVATARS.default(pal, opts.hero && !look.scene);
     const layer = (slot) => (look[slot] && ACC[look[slot]] ? ACC[look[slot]] : '');
     return `<span class="kav" style="--s:${size}px"><svg viewBox="0 0 100 100" role="img" aria-label="${esc('Avatar de ' + (k.name || ''))}">${bg}${av}${layer('neck')}${layer('face')}${layer('head')}</svg></span>`;
