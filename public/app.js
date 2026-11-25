@@ -69,8 +69,12 @@ const dl = (ts) => {
   return n <= 0 ? "Aujourd'hui" : n === 1 ? 'Hier' : new Date(ts).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' });
 };
 
-const avatar = (k, s = 48) => { const c = PAL[k.palette % PAL.length]; return `<div class="av" style="--s:${s}px;--c1:${c[0]};--c2:${c[1]}">${esc(k.name[0].toUpperCase())}${k.accessory ? `<em>${esc(k.accessory)}</em>` : ''}</div>`; };
-const heroAvatar = (k, s = 52) => `<div class="av" style="--s:${s}px;--c1:#ffffff40;--c2:#ffffff22">${esc(k.name[0].toUpperCase())}${k.accessory ? `<em>${esc(k.accessory)}</em>` : ''}</div>`;
+// Avatars illustrés (public/art.js) : bouille aux couleurs de l'enfant par défaut, ou l'avatar, le décor et les accessoires équipés.
+const palOf = (k) => PAL[(k.palette || 0) % PAL.length];
+const avatar = (k, s = 48, opts) => ART.kidArt(k, s, palOf(k), opts);
+const heroAvatar = (k, s = 52) => ART.kidArt(k, s, palOf(k), { hero: true });
+// Aperçu d'un objet de la boutique porté par l'enfant (essayage) : { [emplacement]: illustration }.
+const tryOn = (x) => ({ [x.kind === 'accessory' ? x.slot : x.kind === 'avatar' ? 'avatar' : 'scene']: x.art });
 const logoBadge = () => `<div class="av" style="--s:64px;--c1:#6d5efc;--c2:#a78bfa;margin:0 auto 14px;border-radius:20px">${ic('home').replace('class="i"', 'class="i" style="width:32px;height:32px"')}</div>`;
 const kidName = (id) => (S.kids.find((k) => k.id === id) || { name: '?' }).name;
 // Prénom dans une pastille de la couleur de l'enfant ; sans enfant : « Non attribuée » ; « Tous » pour tous les enfants.
@@ -377,12 +381,20 @@ function goalCard() {
 }
 function kidShop() {
   const K = S.me, sh = S.shop;
-  const seg = `<div class="seg"><button class="${S.shopSeg === 'rew' ? 'on' : ''}" data-a="shopseg" data-v="rew">Récompenses</button><button class="${S.shopSeg === 'acc' ? 'on' : ''}" data-a="shopseg" data-v="acc">Accessoires</button></div>`;
+  const SEGS = [['rew', 'Récompenses'], ['acc', 'Accessoires'], ['ava', 'Avatars'], ['sce', 'Décors']];
+  const seg = `<div class="seg">${SEGS.map(([v, l]) => `<button class="${S.shopSeg === v ? 'on' : ''}" data-a="shopseg" data-v="${v}">${l}</button>`).join('')}</div>`;
   const head = `<div class="row"><h2 class="sp">Magasin</h2><span class="pts" style="font-size:15px">${K.points} pts</span></div>${seg}`;
-  if (S.shopSeg === 'acc') {
-    return head + `<p class="mini" style="margin-top:12px">Payés avec les mêmes points que les récompenses, sans validation.</p><div class="grid2">${sh.accessories.map((x) => `<div class="item"><div class="e">${esc(x.emoji)}</div><b>${esc(x.title)}</b><small>${x.owned ? 'Débloqué' : 'Accessoire'}</small>${x.owned
-      ? `<button class="btn sm ghost" data-a="equip" data-id="${x.equipped ? 'none' : x.id}">${x.equipped ? 'Porté' : 'Équiper'}</button>`
-      : `<button class="btn sm" data-a="buyacc" data-id="${x.id}" ${K.points < x.price ? 'disabled' : ''}>${x.price} pts</button>`}</div>`).join('')}</div>`;
+  if (S.shopSeg !== 'rew') {
+    const kind = { acc: 'accessory', ava: 'avatar', sce: 'scene' }[S.shopSeg] || 'accessory';
+    const SLOTS = { head: 'Sur la tête', face: 'Sur le visage', neck: 'Autour du cou' };
+    const card = (x) => `<div class="item">${avatar(K, 76, { look: tryOn(x) })}<b>${esc(x.title)}</b>${x.owned
+      ? `<button class="btn sm ${x.equipped ? 'on' : 'ghost'}" data-a="equip" data-id="${x.id}">${x.equipped ? '✓ Équipé' : 'Équiper'}</button>`
+      : `<button class="btn sm" data-a="buyacc" data-id="${x.id}" ${K.points < x.price ? 'disabled' : ''}>${x.price} pts</button>`}</div>`;
+    const items = sh.accessories.filter((x) => x.kind === kind);
+    const body = kind === 'accessory'
+      ? Object.entries(SLOTS).map(([slot, label]) => { const l = items.filter((x) => x.slot === slot); return l.length ? `<div class="sec">${label}</div><div class="grid2">${l.map(card).join('')}</div>` : ''; }).join('')
+      : `<div class="grid2" style="margin-top:12px">${items.map(card).join('')}</div>`;
+    return head + `<div class="look">${avatar(K, 96)}<div class="sp"><b>Ton look</b><div class="mini">${{ acc: 'Plusieurs accessoires peuvent être portés en même temps : un sur la tête, un sur le visage, un autour du cou.', ava: 'Choisis ton personnage. Tes accessoires et ton décor restent.', sce: 'Le décor apparaît derrière ton personnage.' }[S.shopSeg]}</div></div></div><p class="mini" style="margin-top:8px">Payés avec les mêmes points que les récompenses, sans validation.</p>` + body;
   }
   const rewards = sh.rewards.length ? `<div class="grid2">${sh.rewards.map((i) => `<div class="item"><button class="star ${i.goal ? 'on' : ''}" data-a="goal" data-id="${i.id}">${ic('star')}</button><div class="e">${esc(i.icon)}</div><b>${esc(i.title)}</b><small>${esc(i.info)}${i.description ? '<br>' + esc(i.description) : ''}</small><button class="btn sm" data-a="buy" data-id="${i.id}" ${K.points < i.price || i.pending || i.blocked ? 'disabled' : ''}>${i.pending ? 'Demandé' : i.blocked || i.price + ' pts'}</button></div>`).join('')}</div><p class="mini" style="margin-top:10px">L'étoile fixe ta récompense visée. Un parent confirme la remise.</p>`
     : '<div class="card mini" style="margin-top:12px">Aucune récompense pour le moment. Demande à un parent d\'en ajouter.</div>';
@@ -411,7 +423,7 @@ function parentShops() {
   }).join('');
   return `<div class="row"><h2 class="sp">Magasins</h2><button class="btn sm" data-a="newreward">${ic('plus')}Ajouter</button></div>${filter}`
     + (groups || emptyCard('Aucune récompense.'))
-    + `<div class="sec">Accessoires (communs)</div>${S.accessories.map((x) => `<div class="task" data-a="accprice" data-id="${x.id}"><div class="ic">${esc(x.emoji)}</div><div class="sp"><b>${esc(x.title)}</b></div><span class="pts">${x.price} pts</span></div>`).join('')}`;
+    + [['accessory', 'Accessoires'], ['avatar', 'Avatars'], ['scene', 'Décors']].map(([kind, label]) => `<div class="sec">${label} (communs)</div>${S.accessories.filter((x) => x.kind === kind).map((x) => `<div class="task" data-a="accprice" data-id="${x.id}"><div class="ic" style="background:none;padding:0">${avatar({ name: '', palette: 0, look: {} }, 44, { look: tryOn(x) })}</div><div class="sp"><b>${esc(x.title)}</b></div><span class="pts">${x.price} pts</span></div>`).join('')}`).join('');
 }
 function sheetReward() {
   const F = S.F, ks = S.kids;
@@ -848,7 +860,7 @@ const A = {
   shopkid(d) { S.shopKid = d.v ? Number(d.v) : null; },
   async buy(d) { await api('me/purchases', 'POST', { rewardId: Number(d.id) }); confetti(); toast('Demande envoyée aux parents'); },
   async goal(d) { const id = Number(d.id); await api('me/goal', 'PUT', { rewardId: S.me.goal && S.me.goal.id === id ? null : id }); },
-  async buyacc(d) { await api(`me/accessories/${d.id}/buy`, 'POST', {}); confetti(); toast('Accessoire débloqué et équipé'); },
+  async buyacc(d) { await api(`me/accessories/${d.id}/buy`, 'POST', {}); confetti(); toast('Débloqué et équipé !'); },
   async equip(d) { await api(`me/accessories/${d.id}/equip`, 'POST', {}); },
 
   // enfant

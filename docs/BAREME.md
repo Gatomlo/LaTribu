@@ -57,6 +57,12 @@ Généré par `node scripts/make-bareme.js` à partir de `lib/seed.js` (chargé 
 | Argent de poche : 5 € | 1 par mois | 2200 |
 | Argent de poche : 10 € | 1 par mois | 4500 |
 
-Avatar : Lunettes 200 · Casquette 250 · Casque audio 300 · Éclair 400 · Couronne 750.
+## Boutique d'avatar
+
+Accessoires : Lunettes 200 · Casquette 250 · Casque audio 300 · Éclair 400 · Couronne 750 · Lunettes de soleil 300 · Masque de héros 450 · Moustache 250 · Bonnet 275 · Chapeau de magicien 600 · Chapeau de pirate 550 · Couronne de fleurs 500 · Nœud papillon 225 · Écharpe 350 · Médaille d'or 650
+
+Avatars : Chat 750 · Chien 750 · Lapin 900 · Panda 1000 · Renard 1100 · Robot 1250 · Licorne 1500 · Dragon 1750
+
+Décors : Ciel nuageux 300 · Plage 400 · Forêt 400 · Montagne 500 · Ville de nuit 550 · Arc-en-ciel 600 · Fête 650 · Espace 800
 
 Bonus de série (3 / 7 / 14 / 30 jours) : 75 / 200 / 375 / 750. Une journée compte dans la série à partir de 70 % des missions faites (réglable par enfant).

@@ -135,19 +135,20 @@ test('objectif d\'épargne, récompense supprimée (l\'historique reste)', async
 test('accessoires : achat immédiat avec les mêmes points, port, prix modifiable', async () => {
   const { parent, a, ka } = await setup(100);
   const acc = (await parent('accessories')).data;
-  assert.equal(acc.length, 5);
+  assert.equal(acc.length, 31);
+  assert.deepEqual(['accessory', 'avatar', 'scene'].map((k) => acc.filter((x) => x.kind === k).length), [15, 8, 8]);
   const lunettes = acc.find((x) => x.title === 'Lunettes');
   const couronne = acc.find((x) => x.title === 'Couronne');
   assert.equal((await a(`me/accessories/${couronne.id}/buy`, 'POST', {})).status, 409, 'pas assez de points');
   const bought = await a(`me/accessories/${lunettes.id}/buy`, 'POST', {});
   assert.equal(bought.data.points, 60);
   assert.equal((await a(`me/accessories/${lunettes.id}/buy`, 'POST', {})).status, 409, 'déjà débloqué');
-  assert.equal((await a('me')).data.accessory, '🕶️');
+  assert.equal((await a('me')).data.look.face, 'glasses');
   assert.equal((await a(`me/accessories/${couronne.id}/equip`, 'POST', {})).status, 409);
-  await a('me/accessories/none/equip', 'POST', {});
-  assert.equal((await a('me')).data.accessory, null);
+  await a(`me/accessories/${lunettes.id}/equip`, 'POST', {}); // porté : un second appel le retire
+  assert.equal((await a('me')).data.look.face, undefined);
   await a(`me/accessories/${lunettes.id}/equip`, 'POST', {});
-  assert.equal((await parent('kids')).data.find((k) => k.id === ka).accessory, '🕶️');
+  assert.equal((await parent('kids')).data.find((k) => k.id === ka).look.face, 'glasses');
   assert.equal((await parent(`accessories/${couronne.id}`, 'PUT', { price: 20 })).status, 200);
   assert.equal((await a(`me/accessories/${couronne.id}/buy`, 'POST', {})).status, 200, 'prix libre côté parent');
   assert.equal((await a('me/history')).data[0].label, 'Accessoire : Couronne');

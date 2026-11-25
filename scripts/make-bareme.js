@@ -14,6 +14,8 @@ md += `## Petit (9 ans) — jour d'école : ${day(seed.TASKS.petit, 2)} points (
 md += `## Grande (14 ans) — jour d'école : ${day(seed.TASKS.grande, 2)} points (mercredi : ${day(seed.TASKS.grande, 3)})\n\n${table(seed.TASKS.grande)}\n\n`;
 md += `## Tâches communes (au premier qui la prend)\n\n${table(seed.TASKS.commun)}\n\n`;
 md += `## Magasin (limite par enfant)\n\n| Récompense | Limite | Prix |\n|---|---|---|\n${seed.REWARDS.map((r) => `| ${r.title} | 1 par ${lim[r.limit]} | ${r.price} |`).join('\n')}\n\n`;
-md += `Avatar : ${Object.entries(seed.ACCESSORY_PRICES).map(([k, v]) => `${k} ${v[1]}`).join(' · ')}.\n\nBonus de série (3 / 7 / 14 / 30 jours) : ${Object.values(seed.NEW_STREAK).join(' / ')}. Une journée compte dans la série à partir de ${seed.STREAK_MIN} % des missions faites (réglable par enfant).\n`;
+const byKind = (kd) => Object.entries(seed.ACCESSORY_PRICES).filter(([, v]) => v[2] === kd).map(([k, v]) => `${k} ${v[1]}`).join(' · ');
+md += `## Boutique d'avatar\n\nAccessoires : ${byKind('accessoire')}\n\nAvatars : ${byKind('avatar')}\n\nDécors : ${byKind('décor')}\n\n`;
+md += `Bonus de série (3 / 7 / 14 / 30 jours) : ${Object.values(seed.NEW_STREAK).join(' / ')}. Une journée compte dans la série à partir de ${seed.STREAK_MIN} % des missions faites (réglable par enfant).\n`;
 require('fs').writeFileSync(require('path').join(__dirname, '..', 'docs', 'BAREME.md'), md);
 console.log('docs/BAREME.md régénéré');

@@ -52,6 +52,7 @@ test('chargement du pack : création, idempotence, réglages d\'un parent prése
   assert.deepEqual(game.bonuses(), seed.NEW_STREAK);
   assert.equal(db.prepare('SELECT streak_min FROM kids WHERE id = ?').get(mylo).streak_min, 70);
   assert.equal(db.prepare("SELECT price FROM accessories WHERE title = 'Couronne'").get().price, 750);
+  assert.equal(db.prepare("SELECT price FROM accessories WHERE title = 'Dragon'").get().price, 1750, 'avatars et décors aussi remis à l\'échelle');
 
   const again = seed.apply();
   assert.equal(again.created.length, 0, 'rien n\'est dupliqué');
