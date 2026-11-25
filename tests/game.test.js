@@ -109,3 +109,32 @@ test('niveau 5 et coup de main (mission ouverte)', async () => {
   assert.deepEqual(r.badges.map((b) => b.key).sort(), ['first', 'helper', 'level5', 'pts100']);
   assert.equal((await parent(`kids/${k}/adjust`, 'POST', { delta: 10 })).status, 200);
 });
+
+test('journée parfaite fêtée une fois ; bravos avec autocollant', async () => {
+  const parent = client(), kid = client();
+  await parent('login', 'POST', { email: 'p@x.be', password: 'motdepasse1' });
+  const k = (await parent('kids', 'POST', { name: 'Lou', pin: '4444' })).data.id;
+  await kid(`kids/${k}/login`, 'POST', { pin: '4444' });
+  assert.equal((await kid('me')).data.celebrate.perfectDay, false, 'rien de prévu : pas de fête');
+  await parent('tasks', 'POST', { title: 'A', points: 2, kids: [k], repeat: 'daily' });
+  await parent('tasks', 'POST', { title: 'B', points: 2, kids: [k], repeat: 'daily' });
+  const [a, b] = (await kid('me/missions')).data.today;
+  await kid(`occurrences/${a.id}/done`, 'POST', {}); await parent(`occurrences/${a.id}/approve`, 'POST', {});
+  assert.equal((await kid('me')).data.celebrate.perfectDay, false, 'une mission restante');
+  await kid(`occurrences/${b.id}/done`, 'POST', {}); await parent(`occurrences/${b.id}/approve`, 'POST', {});
+  assert.equal((await kid('me')).data.celebrate.perfectDay, true);
+  await kid('me/seen', 'POST', {});
+  assert.equal((await kid('me')).data.celebrate.perfectDay, false, 'fêtée une seule fois par jour');
+
+  assert.equal((await parent(`kids/${k}/kudos`, 'POST', { sticker: 'nimporte', note: 'x' })).status, 400);
+  assert.equal((await kid(`kids/${k}/kudos`, 'POST', { sticker: 'bravo' })).status, 403, 'réservé aux parents');
+  assert.equal((await parent(`kids/${k}/kudos`, 'POST', { sticker: 'merci', note: 'Merci pour ton aide' })).status, 201);
+  const me = (await kid('me')).data;
+  assert.equal(me.celebrate.kudos.length, 1);
+  assert.equal(me.celebrate.kudos[0].label, 'Merci !');
+  assert.equal(me.kudos[0].note, 'Merci pour ton aide');
+  await kid('me/seen', 'POST', {});
+  const after = (await kid('me')).data;
+  assert.equal(after.celebrate.kudos.length, 0, 'bravo vu : plus de célébration');
+  assert.equal(after.kudos.length, 1, 'mais toujours dans la liste des bravos reçus');
+});

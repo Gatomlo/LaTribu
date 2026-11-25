@@ -84,7 +84,7 @@ async function loadData() {
   } else if (S.view === 'kid') {
     [S.me, S.missions] = await Promise.all([api('me'), api('me/missions')]);
     const cel = S.me.celebrate; // niveau gagné ou badge obtenu depuis la dernière ouverture
-    if (!S.sheet && (cel.levelUp || cel.badges.length)) { S.sheet = sheetCelebrate; S.fx = true; }
+    if (!S.sheet && (cel.levelUp || cel.badges.length || cel.perfectDay || cel.kudos.length)) { S.sheet = sheetCelebrate; S.fx = true; }
     applyQueued(); kidCacheSave();
     if (S.tab === 'shop') [S.shop, S.purchases] = await Promise.all([api('me/shop'), api('me/purchases')]);
     if (S.tab === 'me') [S.hist, S.purchases] = await Promise.all([api('me/history'), api('me/purchases')]);
@@ -198,6 +198,7 @@ function byMoment(list) {
 function histRow(h) {
   return `<div class="line"><div class="sp"><b style="font-size:14px;font-weight:500">${esc(h.label)}</b><div class="mini">${dl(h.at)}</div></div><span class="pts ${h.delta < 0 ? 'neg' : ''}">${h.delta > 0 ? '+' : ''}${h.delta}</span></div>`;
 }
+const kudosCard = () => (S.me.kudos && S.me.kudos.length ? `<div class="sec">Bravos reçus</div>${S.me.kudos.slice(0, 3).map((k) => `<div class="line"><div style="font-size:26px">${esc(k.emoji)}</div><div class="sp"><b style="font-size:14px">${esc(k.label)}</b><div class="mini">${k.note ? esc(k.note) + ' · ' : ''}${dl(k.at)}</div></div></div>`).join('')}` : '');
 function renderKid(a, nav) {
   const m = S.me;
   nav.innerHTML = tabs([['home', 'home', 'Accueil'], ['missions', 'target', 'Missions'], ['shop', 'bag', 'Magasin'], ['me', 'user', 'Moi']], S.tab);
@@ -207,7 +208,7 @@ function renderKid(a, nav) {
   const M = S.missions;
   if (S.tab === 'home') {
     const done = M.today.filter((o) => o.status === 'done').length;
-    a.innerHTML = hero + offlineBanner() + pushBanner() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
+    a.innerHTML = hero + offlineBanner() + pushBanner() + kudosCard() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
       : '<div class="card mini" style="margin-top:14px;text-align:center">Rien de prévu aujourd\'hui. Jette un œil aux missions à prendre.</div>');
   } else if (S.tab === 'missions') {
     a.innerHTML = `<h2>Missions</h2><div class="sec">À prendre</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${o.kind === 'open' ? 'Sans date' : 'Pour aujourd\'hui'} · premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Rien à prendre pour le moment.'))
@@ -236,7 +237,7 @@ function renderParent(a, nav) {
   } else if (S.tab === 'kids') {
     a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div></div>
       <div class="row" style="margin-top:14px"><div class="big sp">${k.points}<small style="font-size:14px;font-weight:500"> pts</small></div><button class="btn sm" style="background:#ffffff2e" data-a="adjsheet" data-id="${k.id}">Ajuster</button></div></div>
-      <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="stats" data-id="${k.id}">Stats</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Badge</button></div>`; }).join('');
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="stats" data-id="${k.id}">Stats</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Badge</button><button class="btn ghost sm sp" data-a="kudossheet" data-id="${k.id}">Bravo</button></div>`; }).join('');
   } else if (S.tab === 'set') {
     a.innerHTML = `<h2>Réglages</h2><div class="sec">Enfants</div><div class="card" style="padding:0 14px">${S.kids.map((k) => `<div class="line">${avatar(k, 38)}<div class="sp"><b>${esc(k.name)}</b><div class="mini">${k.age ? k.age + ' ans · ' : ''}${k.points} pts</div></div><button class="btn ghost sm" data-a="managekid" data-id="${k.id}">Gérer</button></div>`).join('')}<div class="line" data-a="newkid" style="color:var(--acc);font-weight:600">${ic('plus')}Ajouter un enfant</div></div>
     <div class="sec">Application</div>${installCard()}<div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}
@@ -488,9 +489,19 @@ function beep() {
 }
 function sheetCelebrate() {
   const c = S.me.celebrate;
-  return `<div style="text-align:center"><div style="font-size:54px">${c.levelUp ? '🎉' : '🏅'}</div><h2 style="margin-top:6px">${c.levelUp ? `Niveau ${c.levelUp} !` : 'Nouveau badge !'}</h2>
-  ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div>` : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>'}
+  const head = c.perfectDay ? ['🎉', `Tout est fait, ${S.me.name} !`, 'Journée parfaite !'] : c.levelUp ? ['🎉', `Niveau ${c.levelUp} !`, ''] : c.badges.length ? ['🏅', 'Nouveau badge !', ''] : ['💌', c.kudos.length > 1 ? 'Des bravos pour toi !' : 'Un bravo pour toi !', ''];
+  return `<div style="text-align:center"><div style="font-size:54px">${head[0]}</div><h2 style="margin-top:6px">${esc(head[1])}</h2>${head[2] ? `<p class="mini" style="margin-top:4px">${head[2]}</p>` : ''}
+  ${c.perfectDay && c.levelUp ? `<p style="margin-top:10px"><b>Niveau ${c.levelUp} !</b></p>` : ''}
+  ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div>` : (c.perfectDay || c.kudos.length ? '' : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>')}
+  ${c.kudos.map((k) => `<div class="card" style="margin-top:12px;display:flex;gap:12px;align-items:center;text-align:left"><div style="font-size:34px">${esc(k.emoji)}</div><div class="sp"><b>${esc(k.label)}</b><div class="mini">De tes parents${k.note ? ' : ' + esc(k.note) : ''}</div></div></div>`).join('')}
   <button class="btn full" style="margin-top:18px" data-a="celebrated">Super !</button></div>`;
+}
+function sheetKudos() {
+  const F = S.F;
+  return `<h2>Encourager ${esc(kidName(F.id))}</h2><p class="mini" style="margin-top:2px">${esc(kidName(F.id))} le reçoit en notification et dans son espace.</p>
+  <div class="opts" style="margin-top:12px">${S.stickers.map((x) => `<button class="${F.sticker === x.key ? 'on' : ''}" data-a="kpick" data-v="${x.key}" style="font-size:15px">${esc(x.emoji)} ${esc(x.label)}</button>`).join('')}</div>
+  <label>Un mot (facultatif)</label><input id="f_knote" maxlength="140" value="${esc(F.note)}" placeholder="Ex. Merci d'avoir aidé ton frère">
+  <button class="btn full" style="margin-top:18px" data-a="sendkudos">Envoyer le bravo</button>`;
 }
 const BADGE_ICONS = ['🏅', '💪', '🧠', '❤️', '⭐', '🎯'];
 function sheetBadge() {
@@ -604,6 +615,7 @@ function readInputs() {
   (F.steps || []).forEach((x, i) => { if (g('f_step' + i)) x.label = g('f_step' + i).value; if (g('f_stepp' + i)) x.points = g('f_stepp' + i).value; });
   if (g('f_delta')) F.delta = g('f_delta').value;
   if (g('f_label')) F.label = g('f_label').value;
+  if (g('f_knote')) F.note = g('f_knote').value;
   if (g('f_btitle')) F.title = g('f_btitle').value;
   if (g('f_vfrom')) F.validFrom = g('f_vfrom').value;
   if (g('f_vuntil')) F.validUntil = g('f_vuntil').value;
@@ -646,6 +658,9 @@ const A = {
   async notifagain() { S.settings = await api('settings', 'PUT', { notif: { remindAgain: !S.settings.notif.remindAgain } }); },
   async notifdigest(d) { S.settings = await api('settings', 'PUT', { notif: { digest: d.v || null } }); },
   sound() { try { localStorage.setItem('tribu_sound', soundOn() ? '0' : '1'); } catch { /* stockage indisponible */ } beep(); },
+  async kudossheet(d) { S.stickers = S.stickers || await api('stickers'); S.F = { id: Number(d.id), sticker: 'bravo', note: '' }; S.sheet = sheetKudos; },
+  kpick(d) { S.F.sticker = d.v; },
+  async sendkudos() { await api(`kids/${S.F.id}/kudos`, 'POST', { sticker: S.F.sticker, note: S.F.note }); S.sheet = null; toast('Bravo envoyé'); },
   badgesheet(d) { S.F = { id: Number(d.id), title: '', emoji: '🏅' }; S.sheet = sheetBadge; },
   async savebadge() { await api(`kids/${S.F.id}/badges`, 'POST', { title: S.F.title, emoji: S.F.emoji }); S.sheet = null; toast('Badge décerné'); },
   async savebonus() { const b = {}; for (const m of [3, 7, 14, 30]) b[m] = Number(val(`f_b${m}`)); S.settings = await api('settings', 'PUT', { streakBonus: b }); toast('Bonus enregistrés'); },
@@ -788,7 +803,7 @@ const A = {
 
 // Actions qui ne changent que le formulaire ouvert : pas de rechargement des données, la fiche est mise à jour sur place
 // (même élément, même défilement, aucune animation d'ouverture rejouée).
-const LOCAL = new Set(['fset', 'ftoggle', 'fall', 'fnone', 'fphoto', 'addstep', 'delstep', 'fshared', 'ractive', 'quick', 'ipick', 'icat', 'ichoose', 'iuse']);
+const LOCAL = new Set(['fset', 'ftoggle', 'fall', 'fnone', 'kpick', 'fphoto', 'addstep', 'delstep', 'fshared', 'ractive', 'quick', 'ipick', 'icat', 'ichoose', 'iuse']);
 function renderSheetInPlace() {
   const sh = S.sheet && document.querySelector('.sheet-bg .sheet');
   if (!sh) return false;
