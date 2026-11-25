@@ -49,7 +49,7 @@ async function api(path, method = 'GET', body) {
 }
 
 // ---------- État ----------
-const S = { viewAs: null, shopKid: null, session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
+const S = { viewAs: null, shopKid: null, taskKid: '', taskMoment: '', session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -73,6 +73,14 @@ const avatar = (k, s = 48) => { const c = PAL[k.palette % PAL.length]; return `<
 const heroAvatar = (k, s = 52) => `<div class="av" style="--s:${s}px;--c1:#ffffff40;--c2:#ffffff22">${esc(k.name[0].toUpperCase())}${k.accessory ? `<em>${esc(k.accessory)}</em>` : ''}</div>`;
 const logoBadge = () => `<div class="av" style="--s:64px;--c1:#6d5efc;--c2:#a78bfa;margin:0 auto 14px;border-radius:20px">${ic('home').replace('class="i"', 'class="i" style="width:32px;height:32px"')}</div>`;
 const kidName = (id) => (S.kids.find((k) => k.id === id) || { name: '?' }).name;
+// Prénom dans une pastille de la couleur de l'enfant ; sans enfant : « Non attribuée » ; « Tous » pour tous les enfants.
+const kidBadge = (id) => {
+  if (id === null) return '<span class="kb none">Non attribuée</span>';
+  if (id === 'all') return '<span class="kb none">Tous</span>';
+  const k = S.kids.find((x) => x.id === Number(id));
+  const c = PAL[(k ? k.palette : 0) % PAL.length];
+  return `<span class="kb" style="--c1:${c[0]};--c2:${c[1]}">${esc(k ? k.name : '?')}</span>`;
+};
 
 // ---------- Chargement ----------
 async function loadData() {
@@ -230,12 +238,18 @@ function renderParent(a, nav) {
   }
   if (S.tab === 'home') {
     a.innerHTML = `<h2>À valider</h2><p class="mini" style="margin-top:2px">${S.review.length + S.pending.length ? 'Des décisions t\'attendent.' : 'Rien à valider pour le moment.'}</p>${pushBanner()}<div class="sec">Missions déclarées (${S.review.length})</div>` +
-      (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${esc(o.kidName)} · ${dl(o.doneAt)}</small>${reviewSteps(o)}</div>${o.hasPhoto ? `<img class="thumb" src="api/occurrences/${o.id}/photo" alt="Photo" data-a="viewphoto" data-id="${o.id}">` : ''}<span class="pts">+${reviewPts(o)}</span></div>
+      (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${kidBadge(o.kidId)} ${dl(o.doneAt)}</small>${reviewSteps(o)}</div>${o.hasPhoto ? `<img class="thumb" src="api/occurrences/${o.id}/photo" alt="Photo" data-a="viewphoto" data-id="${o.id}">` : ''}<span class="pts">+${reviewPts(o)}</span></div>
       <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusesheet" data-id="${o.id}">Refuser</button><button class="btn ok sp" data-a="approve" data-id="${o.id}">Valider</button></div>`).join('') || emptyCard('Aucune mission en attente.')) + purchasesSection();
   } else if (S.tab === 'tasks') {
-    const plan = S.tasks.filter((t) => t.kind === 'plan'), open = S.tasks.filter((t) => t.kind === 'open');
-    const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidName).map(esc).join(' + ') : 'Non attribuée') + ' · '}${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}${t.steps && t.steps.length ? `<div class="mini" style="margin-top:3px">${t.steps.length} sous-tâche${t.steps.length > 1 ? 's' : ''}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
-    a.innerHTML = `<div class="row"><h2 class="sp">Tâches</h2><button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div><div class="sec">Planifiées</div>${plan.map(row).join('') || emptyCard('Aucune tâche.')}<div class="sec">Ouvertes (sans date)</div>${open.map(row).join('') || emptyCard('Aucune tâche ouverte.')}`;
+    // Filtres : pour qui (un enfant, non attribuée) et moment de la journée.
+    const tk = S.taskKid, tm = S.taskMoment;
+    const match = (t) => (tk === '' || (tk === 'none' ? !t.kids.length : t.kids.includes(Number(tk)))) && (tm === '' || (tm === 'none' ? !t.moment : t.moment === tm));
+    const shown = S.tasks.filter(match);
+    const plan = shown.filter((t) => t.kind === 'plan'), open = shown.filter((t) => t.kind === 'open');
+    const filters = `<div class="opts" style="margin-top:10px">${[['', 'Tous'], ...S.kids.map((k) => [String(k.id), esc(k.name)]), ['none', 'Non attribuée']].map(([v, l]) => `<button class="${tk === v ? 'on' : ''}" data-a="taskkid" data-v="${v}">${l}</button>`).join('')}</div>
+      <div class="opts" style="margin-top:8px">${[['', 'Tous les moments'], ...MOMENTS, ['none', 'Dans la journée']].map(([v, l]) => `<button class="${tm === v ? 'on' : ''}" data-a="taskmoment" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidBadge).join('') : kidBadge(null))} ${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}${t.steps && t.steps.length ? `<div class="mini" style="margin-top:3px">${t.steps.length} sous-tâche${t.steps.length > 1 ? 's' : ''}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
+    a.innerHTML = `<div class="row"><h2 class="sp">Tâches</h2><button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div>${filters}<div class="sec">Planifiées (${plan.length})</div>${plan.map(row).join('') || emptyCard(S.tasks.length ? 'Aucune tâche pour ce filtre.' : 'Aucune tâche.')}<div class="sec">Ouvertes, sans date (${open.length})</div>${open.map(row).join('') || emptyCard('Aucune tâche ouverte.')}`;
   } else if (S.tab === 'kids') {
     a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div></div>
       <div class="row" style="margin-top:14px"><div class="big sp">${k.points}<small style="font-size:14px;font-weight:500"> pts</small></div><button class="btn sm" style="background:#ffffff2e" data-a="adjsheet" data-id="${k.id}">Ajuster</button></div></div>
@@ -375,20 +389,20 @@ function kidShop() {
   const mine = S.purchases.slice(0, 5);
   return head + rewards + (mine.length ? `<div class="sec">Mes demandes</div><div class="card" style="padding:0 14px">${mine.map(purchaseRow).join('')}</div>` : '');
 }
-const purchasesSection = () => `<div class="sec">Demandes d'achat (${S.pending.length})</div>` + (S.pending.map((p) => `<div class="task"><div class="ic">${esc(p.icon)}</div><div class="sp"><b>${esc(p.title)}</b><small>${esc(p.kidName)} · ${p.price} pts réservés</small></div></div>
+const purchasesSection = () => `<div class="sec">Demandes d'achat (${S.pending.length})</div>` + (S.pending.map((p) => `<div class="task"><div class="ic">${esc(p.icon)}</div><div class="sp"><b>${esc(p.title)}</b><small>${kidBadge(p.kidId)} ${p.price} pts réservés</small></div></div>
   <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusebuy" data-id="${p.id}">Refuser</button><button class="btn ok sp" data-a="givebuy" data-id="${p.id}">Remis</button></div>`).join('') || emptyCard('Aucune demande.'));
 // Magasin vu par le parent : une seule liste (une récompense identique pour plusieurs enfants n'apparaît qu'une fois),
 // classée par fréquence puis par prix, avec un filtre par enfant.
 const SHOP_GROUPS = [['day', 'Chaque jour'], ['week', 'Chaque semaine'], ['month', 'Chaque mois'], ['none', 'Sans limite']];
 function parentShops() {
   const kidF = S.kids.find((k) => k.id === S.shopKid) || null;
-  const who = (r) => (r.kids.length === S.kids.length ? 'Tous' : r.kids.map(kidName).map(esc).join(' + '));
+  const who = (r) => (r.kids.length === S.kids.length && S.kids.length > 1 ? kidBadge('all') : r.kids.map(kidBadge).join(''));
   const stock = (r) => {
     if (r.shared) return stockLabel(r.stock, true);
     const ks = kidF ? [kidF.id] : r.kids;
-    return ks.map((id) => { const l = stockLabel(r.left[id], false); return l ? (ks.length > 1 ? `${esc(kidName(id))} : ${l}` : l) : ''; }).filter(Boolean).join(' · ');
+    return ks.map((id) => { const l = stockLabel(r.left[id], false); return l ? (ks.length > 1 ? `${kidBadge(id)}${l}` : l) : ''; }).filter(Boolean).join(' ');
   };
-  const row = (r) => `<div class="task" data-a="editreward" data-id="${r.id}"><div class="ic">${esc(r.icon)}</div><div class="sp"><b>${esc(r.title)}</b><small>${[kidF ? '' : who(r), AVAIL[r.availability], stock(r), r.validUntil ? `Jusqu'au ${frd(r.validUntil)}` : ''].filter(Boolean).join(' · ') || '&nbsp;'}</small>${r.description ? `<div class="mini" style="margin-top:3px">${esc(r.description)}</div>` : ''}</div><span class="pts">${r.price} pts</span></div>`;
+  const row = (r) => `<div class="task" data-a="editreward" data-id="${r.id}"><div class="ic">${esc(r.icon)}</div><div class="sp"><b>${esc(r.title)}</b><small>${kidF ? '' : who(r) + ' '}${[AVAIL[r.availability], stock(r), r.validUntil ? `Jusqu'au ${frd(r.validUntil)}` : ''].filter(Boolean).join(' · ')}</small>${r.description ? `<div class="mini" style="margin-top:3px">${esc(r.description)}</div>` : ''}</div><span class="pts">${r.price} pts</span></div>`;
   const shown = S.rewards.filter((r) => !kidF || r.kids.includes(kidF.id));
   const filter = S.kids.length > 1 ? `<div class="opts" style="margin-top:10px"><button class="${kidF ? '' : 'on'}" data-a="shopkid" data-v="">Tous</button>${S.kids.map((k) => `<button class="${kidF && kidF.id === k.id ? 'on' : ''}" data-a="shopkid" data-v="${k.id}">${esc(k.name)}</button>`).join('')}</div>` : '';
   const groups = SHOP_GROUPS.map(([lim, label]) => {
@@ -829,6 +843,8 @@ const A = {
 
   // magasin (enfant)
   shopseg(d) { S.shopSeg = d.v; },
+  taskkid(d) { S.taskKid = d.v; },
+  taskmoment(d) { S.taskMoment = d.v; },
   shopkid(d) { S.shopKid = d.v ? Number(d.v) : null; },
   async buy(d) { await api('me/purchases', 'POST', { rewardId: Number(d.id) }); confetti(); toast('Demande envoyée aux parents'); },
   async goal(d) { const id = Number(d.id); await api('me/goal', 'PUT', { rewardId: S.me.goal && S.me.goal.id === id ? null : id }); },
