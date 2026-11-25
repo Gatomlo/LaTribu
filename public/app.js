@@ -164,11 +164,15 @@ function stepList(o, can) {
   if (!o.steps || !o.steps.length) return '';
   const n = o.steps.filter((x) => x.checked).length, each = o.stepsMode === 'each', done = o.status === 'done';
   const mark = (x) => (done && each ? (x.approved ? '☑' : '✗') : x.checked ? '☑' : '☐');
-  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="mini" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? 'text-decoration:line-through;opacity:.7' : ''}"><span aria-hidden="true">${mark(x)}</span><span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · les sous-tâches non faites ne rapportent rien' : ''}</div></div>`;
+  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="mini" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? 'text-decoration:line-through;opacity:.7' : ''}"><span aria-hidden="true">${mark(x)}</span><span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · les sous-tâches non faites ne rapportent rien' : ''}${each && o.stepsBonus ? ` · bonus +${o.stepsBonus} si tout est fait` : ''}</div></div>`;
 }
 // Validation parent : en mode « points par sous-tâche », chaque sous-tâche cochée se valide ou non (décochée = perdue).
 const desel = (S.desel = {});
-const reviewPts = (o) => (o.stepsMode === 'each' ? o.steps.filter((x) => x.checked && !(desel[o.id] || []).includes(x.id)).reduce((n, x) => n + x.points, 0) : o.points);
+const reviewPts = (o) => {
+  if (o.stepsMode !== 'each') return o.points;
+  const ok = o.steps.filter((x) => x.checked && !(desel[o.id] || []).includes(x.id));
+  return ok.reduce((n, x) => n + x.points, 0) + (ok.length === o.steps.length ? o.stepsBonus || 0 : 0);
+};
 function reviewSteps(o) {
   if (o.stepsMode !== 'each') return stepList(o, false);
   return `<div style="margin-top:6px">${o.steps.map((x) => {
@@ -277,7 +281,7 @@ function sheetTask() {
   return `<h2>${F.id ? 'Modifier la tâche' : 'Nouvelle tâche'}</h2>${F.id ? '' : `<button class="btn ghost sm full" style="margin-top:10px" data-a="tplpicker">Choisir un modèle de tâche</button>`}${field('f_title', 'Titre', F.title, 'placeholder="Ex. Arroser les plantes"')}
   ${iconField(F, 'icon', ICONS)}
   <label>Description (facultatif)</label><textarea id="f_desc" rows="2" placeholder="Ex. Toutes les plantes du salon">${esc(F.description)}</textarea>
-  ${each ? `<label>Points gagnés</label><div class="mini">Total possible : <b>${(F.steps || []).reduce((n, x) => n + (Number(x.points) || 0), 0)}</b> (somme des sous-tâches)</div>` : `<label>Points gagnés (valeur libre)</label><input id="f_pts" class="ptsin" type="number" inputmode="numeric" value="${esc(F.points)}" placeholder="0">`}
+  ${each ? `<label>Points gagnés</label><div class="mini">Total possible : <b>${(F.steps || []).reduce((n, x) => n + (Number(x.points) || 0), 0) + (Number(F.stepsBonus) || 0)}</b> (somme des sous-tâches + bonus)</div>` : `<label>Points gagnés (valeur libre)</label><input id="f_pts" class="ptsin" type="number" inputmode="numeric" value="${esc(F.points)}" placeholder="0">`}
   ${F.id ? '' : `<label>Quand ?</label>${chips('fset', 'kind', [['plan', 'Planifiée'], ['open', 'Ouverte']], (v) => F.kind === v)}`}
   <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}<button class="${F.kids.length ? '' : 'on'}" data-a="fnone">Non attribuée</button></div>
   ${open ? '' : `<label>Répétition</label>${chips('fset', 'repeat', REPEATS, (v) => F.repeat === v)}
@@ -289,6 +293,7 @@ function sheetTask() {
   <label>Sous-tâches (facultatif)</label>
   ${(F.steps || []).length ? `${chips('fset', 'stepsMode', [['all', 'Tout ou rien'], ['each', 'Points par sous-tâche']], (v) => (F.stepsMode || 'all') === v)}<p class="mini" style="margin-top:6px">${each ? 'Chaque sous-tâche validée rapporte ses points ; celles qui ne sont pas faites sont perdues.' : 'Toutes les sous-tâches doivent être faites pour gagner les points de la tâche.'}</p>` : ''}
   ${(F.steps || []).map((x, i) => `<div class="row" style="margin-top:6px"><input id="f_step${i}" value="${esc(x.label)}" maxlength="80" placeholder="Ex. Vider le lave-vaisselle" style="flex:1">${each ? `<input id="f_stepp${i}" class="ptsin" type="number" inputmode="numeric" value="${esc(x.points || '')}" placeholder="pts" style="width:72px">` : ''}<button class="btn ghost sm" data-a="delstep" data-i="${i}" aria-label="Retirer la sous-tâche">×</button></div>`).join('')}
+  ${each ? `<label>Bonus si toutes les sous-tâches sont faites (facultatif)</label><input id="f_sbonus" class="ptsin" type="number" inputmode="numeric" min="0" value="${esc(F.stepsBonus || '')}" placeholder="0">` : ''}
   ${(F.steps || []).length < 12 ? `<button class="btn ghost sm full" style="margin-top:8px" data-a="addstep">${ic('plus')}Ajouter une sous-tâche</button>` : ''}
   <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b></div>${sw(F.photoRequired)}</div>
   ${open ? '' : `<label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
@@ -595,6 +600,7 @@ function readInputs() {
   if (g('f_md')) F.monthDay = g('f_md').value;
   if (g('f_date')) F.date = g('f_date').value;
   if (g('f_rt')) F.remindAt = g('f_rt').value;
+  if (g('f_sbonus')) F.stepsBonus = g('f_sbonus').value;
   (F.steps || []).forEach((x, i) => { if (g('f_step' + i)) x.label = g('f_step' + i).value; if (g('f_stepp' + i)) x.points = g('f_stepp' + i).value; });
   if (g('f_delta')) F.delta = g('f_delta').value;
   if (g('f_label')) F.label = g('f_label').value;
@@ -606,8 +612,8 @@ function readInputs() {
   if (g('f_stock')) F.stock = g('f_stock').value;
 }
 const val = (id) => (document.getElementById(id) || {}).value || '';
-const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false, steps: [], stepsMode: 'all' });
-const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, steps: (F.steps || []).filter((x) => x.label.trim()).map((x) => ({ id: x.id, label: x.label, points: Number(x.points) || 0 })), stepsMode: (F.steps || []).some((x) => x.label.trim()) ? F.stepsMode : 'all' });
+const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false, steps: [], stepsMode: 'all', stepsBonus: '' });
+const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, steps: (F.steps || []).filter((x) => x.label.trim()).map((x) => ({ id: x.id, label: x.label, points: Number(x.points) || 0 })), stepsMode: (F.steps || []).some((x) => x.label.trim()) ? F.stepsMode : 'all', stepsBonus: Number(F.stepsBonus) || 0 });
 
 // ---------- Actions ----------
 const A = {
@@ -673,7 +679,7 @@ const A = {
   newtask() { S.F = blankTask(); S.sheet = sheetTask; },
   edittask(d) {
     const t = S.tasks.find((x) => x.id === Number(d.id));
-    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired, steps: (t.steps || []).map((x) => ({ ...x })), stepsMode: t.stepsMode || 'all' };
+    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired, steps: (t.steps || []).map((x) => ({ ...x })), stepsMode: t.stepsMode || 'all', stepsBonus: t.stepsBonus || '' };
     S.sheet = sheetTask;
   },
   async savetask() {
@@ -688,7 +694,7 @@ const A = {
   rvstep(d) { const id = Number(d.id), st = Number(d.step), l = (desel[id] = desel[id] || []), i = l.indexOf(st); if (i >= 0) l.splice(i, 1); else l.push(st); },
   async approve(d) {
     const o = S.review.find((x) => x.id === Number(d.id)), body = o && o.stepsMode === 'each' ? { steps: o.steps.filter((x) => x.checked && !(desel[o.id] || []).includes(x.id)).map((x) => x.id) } : {};
-    const r = await api(`occurrences/${d.id}/approve`, 'POST', body); confetti(); beep(); toast(`+${r.points} pts pour ${kidName(r.kidId)}${r.awarded.length ? ` · bonus de série +${r.awarded[0].points}` : ''}`); },
+    const r = await api(`occurrences/${d.id}/approve`, 'POST', body); confetti(); beep(); toast(`+${r.earned} pts pour ${kidName(r.kidId)}${r.awarded.length ? ` · bonus de série +${r.awarded[0].points}` : ''}`); },
   refusesheet(d) { S.F = { id: Number(d.id) }; S.sheet = sheetRefuse; },
   async refuse() { await api(`occurrences/${S.F.id}/refuse`, 'POST', { note: val('f_note') }); S.sheet = null; toast('Renvoyé à l\'enfant'); },
   adjsheet(d) { S.F = { id: Number(d.id), delta: '', label: '' }; S.sheet = sheetAdjust; },

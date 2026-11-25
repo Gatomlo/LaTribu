@@ -212,9 +212,22 @@ test('sous-tâches avec points par sous-tâche : seules les validées rapportent
   assert.throws(() => tasks.approve(m.id, [m.steps[2].id]), /Aucune/, 'une étape non cochée ne compte pas');
   const before = points.summary(kid).points;
   const out = tasks.approve(m.id, [m.steps[1].id]); // le parent ne valide que B
-  assert.equal(out.points, 3);
+  assert.equal(out.earned, 3);
   assert.equal(points.summary(kid).points - before, 3);
   const done = tasks.forKid(kid).today.find((o) => o.id === m.id);
   assert.deepEqual(done.steps.map((s) => s.approved), [false, true, false]);
   assert.equal(done.points, 3);
+
+  // Bonus si toutes les sous-tâches sont validées.
+  const id2 = tasks.create({ title: 'Cuisine+', kind: 'open', kids: [kid], stepsMode: 'each', stepsBonus: 4, steps: [{ label: 'A', points: 2 }, { label: 'B', points: 3 }] });
+  assert.equal(tasks.list().find((t) => t.id === id2).points, 9, 'total possible = sous-tâches + bonus');
+  const m2 = tasks.forKid(kid).today.find((o) => o.taskId === id2);
+  m2.steps.forEach((s) => tasks.toggleStep(kid, m2.id, s.id, true));
+  tasks.declare(kid, m2.id);
+  assert.equal(tasks.approve(m2.id).earned, 9);
+  const id3 = tasks.create({ title: 'Cuisine++', kind: 'open', kids: [kid], stepsMode: 'each', stepsBonus: 4, steps: [{ label: 'A', points: 2 }, { label: 'B', points: 3 }] });
+  const m3 = tasks.forKid(kid).today.find((o) => o.taskId === id3);
+  m3.steps.forEach((s) => tasks.toggleStep(kid, m3.id, s.id, true));
+  tasks.declare(kid, m3.id);
+  assert.equal(tasks.approve(m3.id, [m3.steps[0].id]).earned, 2, 'une sous-tâche écartée : pas de bonus');
 });
