@@ -49,7 +49,7 @@ async function api(path, method = 'GET', body) {
 }
 
 // ---------- État ----------
-const S = { viewAs: null, session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
+const S = { viewAs: null, shopKid: null, session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -377,10 +377,26 @@ function kidShop() {
 }
 const purchasesSection = () => `<div class="sec">Demandes d'achat (${S.pending.length})</div>` + (S.pending.map((p) => `<div class="task"><div class="ic">${esc(p.icon)}</div><div class="sp"><b>${esc(p.title)}</b><small>${esc(p.kidName)} · ${p.price} pts réservés</small></div></div>
   <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusebuy" data-id="${p.id}">Refuser</button><button class="btn ok sp" data-a="givebuy" data-id="${p.id}">Remis</button></div>`).join('') || emptyCard('Aucune demande.'));
+// Magasin vu par le parent : une seule liste (une récompense identique pour plusieurs enfants n'apparaît qu'une fois),
+// classée par fréquence puis par prix, avec un filtre par enfant.
+const SHOP_GROUPS = [['day', 'Chaque jour'], ['week', 'Chaque semaine'], ['month', 'Chaque mois'], ['none', 'Sans limite']];
 function parentShops() {
-  const row = (r, k) => `<div class="task" data-a="editreward" data-id="${r.id}"><div class="ic">${esc(r.icon)}</div><div class="sp"><b>${esc(r.title)}</b><small>${[AVAIL[r.availability], LIMITS[r.limit], stockLabel(r.left[k.id], r.shared), r.validUntil ? `Jusqu'au ${frd(r.validUntil)}` : ''].filter(Boolean).join(' · ') || 'Sans limite'}</small>${r.description ? `<div class="mini" style="margin-top:3px">${esc(r.description)}</div>` : ''}</div><span class="pts">${r.price} pts</span></div>`;
-  return `<div class="row"><h2 class="sp">Magasins</h2><button class="btn sm" data-a="newreward">${ic('plus')}Ajouter</button></div>`
-    + S.kids.map((k) => `<div class="sec">${esc(k.name)}</div>${S.rewards.filter((r) => r.kids.includes(k.id)).map((r) => row(r, k)).join('') || emptyCard('Aucune récompense.')}`).join('')
+  const kidF = S.kids.find((k) => k.id === S.shopKid) || null;
+  const who = (r) => (r.kids.length === S.kids.length ? 'Tous' : r.kids.map(kidName).map(esc).join(' + '));
+  const stock = (r) => {
+    if (r.shared) return stockLabel(r.stock, true);
+    const ks = kidF ? [kidF.id] : r.kids;
+    return ks.map((id) => { const l = stockLabel(r.left[id], false); return l ? (ks.length > 1 ? `${esc(kidName(id))} : ${l}` : l) : ''; }).filter(Boolean).join(' · ');
+  };
+  const row = (r) => `<div class="task" data-a="editreward" data-id="${r.id}"><div class="ic">${esc(r.icon)}</div><div class="sp"><b>${esc(r.title)}</b><small>${[kidF ? '' : who(r), AVAIL[r.availability], stock(r), r.validUntil ? `Jusqu'au ${frd(r.validUntil)}` : ''].filter(Boolean).join(' · ') || '&nbsp;'}</small>${r.description ? `<div class="mini" style="margin-top:3px">${esc(r.description)}</div>` : ''}</div><span class="pts">${r.price} pts</span></div>`;
+  const shown = S.rewards.filter((r) => !kidF || r.kids.includes(kidF.id));
+  const filter = S.kids.length > 1 ? `<div class="opts" style="margin-top:10px"><button class="${kidF ? '' : 'on'}" data-a="shopkid" data-v="">Tous</button>${S.kids.map((k) => `<button class="${kidF && kidF.id === k.id ? 'on' : ''}" data-a="shopkid" data-v="${k.id}">${esc(k.name)}</button>`).join('')}</div>` : '';
+  const groups = SHOP_GROUPS.map(([lim, label]) => {
+    const items = shown.filter((r) => r.limit === lim).sort((a, b) => a.price - b.price || a.id - b.id);
+    return items.length ? `<div class="sec">${label} (${items.length})</div>${items.map(row).join('')}` : '';
+  }).join('');
+  return `<div class="row"><h2 class="sp">Magasins</h2><button class="btn sm" data-a="newreward">${ic('plus')}Ajouter</button></div>${filter}`
+    + (groups || emptyCard('Aucune récompense.'))
     + `<div class="sec">Accessoires (communs)</div>${S.accessories.map((x) => `<div class="task" data-a="accprice" data-id="${x.id}"><div class="ic">${esc(x.emoji)}</div><div class="sp"><b>${esc(x.title)}</b></div><span class="pts">${x.price} pts</span></div>`).join('')}`;
 }
 function sheetReward() {
@@ -813,6 +829,7 @@ const A = {
 
   // magasin (enfant)
   shopseg(d) { S.shopSeg = d.v; },
+  shopkid(d) { S.shopKid = d.v ? Number(d.v) : null; },
   async buy(d) { await api('me/purchases', 'POST', { rewardId: Number(d.id) }); confetti(); toast('Demande envoyée aux parents'); },
   async goal(d) { const id = Number(d.id); await api('me/goal', 'PUT', { rewardId: S.me.goal && S.me.goal.id === id ? null : id }); },
   async buyacc(d) { await api(`me/accessories/${d.id}/buy`, 'POST', {}); confetti(); toast('Accessoire débloqué et équipé'); },
