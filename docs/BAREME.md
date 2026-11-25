@@ -1,35 +1,35 @@
 # Barème de points — pack famille
 
-Généré par `lib/seed.js` (chargé avec `npm run seed-famille`). **1 point ≈ 3 minutes d'effort, 5 points minimum par geste.** Aucune pénalité : un oubli fait seulement perdre le bonus « tout est fait ». Tous les chiffres se modifient ensuite dans l'application.
+Généré par `node scripts/make-bareme.js` à partir de `lib/seed.js` (chargé avec `npm run seed-famille`). **1 point ≈ 3 minutes d'effort, 5 points minimum par geste.** Aucune pénalité : un oubli fait seulement perdre le bonus « tout est fait ». Rappels : matin 7 h, après-midi 16 h 30, soir 18 h (mélatonine 20 h). Tous les chiffres se modifient ensuite dans l'application.
 
 ## Petit (9 ans) — jour d'école : 200 points (mercredi : 190)
 
 | Tâche | Quand | Détail | Points |
 |---|---|---|---|
-| Routine du matin (07:00) | tous les jours | S'habiller 5 · Prendre son petit-déjeuner 5 · Se brosser les dents 5 · Débarrasser sa table 5 · **bonus 5** | 25 |
-| Préparer et emballer son lunch | lun mar jeu ven |  | 10 |
-| Retour de l'école (16:30) | lun mar mer jeu ven | Ranger ses chaussures 5 · Accrocher sa veste 5 · Ranger son sac de sport et ses affaires 5 · Vider son sac à lunch 5 · **bonus 5** | 25 |
-| Devoirs (17:00) | lun mar mer jeu ven | S'installer et sortir le matériel 5 · Faire ses devoirs 30 · Ranger son matériel 5 | 40 |
-| Prendre son Risperdal (18:00) | tous les jours |  | 5 |
-| Corvées du soir (18:30) | tous les jours | Vider le lave-vaisselle 20 · Vider le tapis de l'évier 5 · Mettre la table 15 · **bonus 15** | 55 |
-| Préparer le cartable du lendemain (19:30) | lun mar mer jeu dim |  | 10 |
-| Rituel du coucher (20:30) | tous les jours | Mettre son pyjama 5 · Se brosser les dents 5 · Faire pipi 5 · **bonus 5** | 20 |
+| Routine du matin (rappel 07:00) | tous les jours | S'habiller 5 · Prendre son petit-déjeuner 5 · Se brosser les dents 5 · Débarrasser sa table 5 · **bonus 5** | 25 |
+| Préparer et emballer son lunch (rappel 07:00) | lun mar jeu ven |  | 10 |
+| Retour de l'école (rappel 16:30) | lun mar mer jeu ven | Ranger ses chaussures 5 · Accrocher sa veste 5 · Ranger son sac de sport et ses affaires 5 · Vider son sac à lunch 5 · **bonus 5** | 25 |
+| Devoirs (rappel 16:30) | lun mar mer jeu ven | S'installer et sortir le matériel 5 · Faire ses devoirs 30 · Ranger son matériel 5 | 40 |
+| Prendre son Risperdal (rappel 18:00) | tous les jours |  | 5 |
+| Corvées du soir (rappel 18:00) | tous les jours | Vider le lave-vaisselle 20 · Vider le tapis de l'évier 5 · Mettre la table 15 · **bonus 15** | 55 |
+| Préparer le cartable du lendemain (rappel 18:00) | lun mar mer jeu dim |  | 10 |
+| Rituel du coucher (rappel 18:00) | tous les jours | Mettre son pyjama 5 · Se brosser les dents 5 · Faire pipi 5 · **bonus 5** | 20 |
 | Prendre une douche | tous les jours | Bonus 25 si 4 fois/semaine | 10 |
 
 ## Grande (14 ans) — jour d'école : 255 points (mercredi : 245)
 
 | Tâche | Quand | Détail | Points |
 |---|---|---|---|
-| Routine du matin (07:00) | tous les jours | Se préparer (habillée, coiffée) 10 · Prendre son petit-déjeuner 5 · Débarrasser sa table 5 · **bonus 10** | 30 |
-| Médicaments du matin (07:15) | tous les jours | Fer 5 · Equazym 5 · Antihistaminique 5 | 15 |
-| Préparer et emballer son lunch | lun mar jeu ven |  | 10 |
-| Retour de l'école (16:30) | lun mar mer jeu ven | Ranger ses chaussures 5 · Accrocher sa veste 5 · Ranger son sac de sport et ses affaires 5 · Vider son sac à lunch 5 · **bonus 5** | 25 |
-| Devoirs (17:00) | lun mar mer jeu ven | S'installer et sortir le matériel 5 · Faire ses devoirs 35 · Ranger son matériel 5 | 45 |
-| Ranger la cuisine (18:30) | tous les jours | Remplir le lave-vaisselle 10 · Nettoyer les plans de travail + taque 15 · Vider et rincer l'évier 5 · Passer un coup de balai 5 · Ranger et nettoyer le bar 10 · Débarrasser et nettoyer la table 10 · **bonus 10** | 65 |
-| Préparer le cartable du lendemain (19:30) | lun mar mer jeu dim |  | 10 |
-| Prendre sa mélatonine (20:00) | tous les jours |  | 5 |
-| Rituel du coucher (20:45) | tous les jours | Mettre son pyjama 5 · Se brosser les dents 5 · Faire pipi 5 · **bonus 5** | 20 |
-| Dents et appareil après les repas | tous les jours | Après le petit-déjeuner 5 · Après le repas de midi 5 · Après le souper 5 · **bonus 5** | 20 |
+| Routine du matin (rappel 07:00) | tous les jours | Se préparer (habillée, coiffée) 10 · Prendre son petit-déjeuner 5 · Débarrasser sa table 5 · **bonus 10** | 30 |
+| Médicaments du matin (rappel 07:00) | tous les jours | Fer 5 · Equazym 5 · Antihistaminique 5 | 15 |
+| Préparer et emballer son lunch (rappel 07:00) | lun mar jeu ven |  | 10 |
+| Retour de l'école (rappel 16:30) | lun mar mer jeu ven | Ranger ses chaussures 5 · Accrocher sa veste 5 · Ranger son sac de sport et ses affaires 5 · Vider son sac à lunch 5 · **bonus 5** | 25 |
+| Devoirs (rappel 16:30) | lun mar mer jeu ven | S'installer et sortir le matériel 5 · Faire ses devoirs 35 · Ranger son matériel 5 | 45 |
+| Ranger la cuisine (rappel 18:00) | tous les jours | Remplir le lave-vaisselle 10 · Nettoyer les plans de travail + taque 15 · Vider et rincer l'évier 5 · Passer un coup de balai 5 · Ranger et nettoyer le bar 10 · Débarrasser et nettoyer la table 10 · **bonus 10** | 65 |
+| Préparer le cartable du lendemain (rappel 18:00) | lun mar mer jeu dim |  | 10 |
+| Prendre sa mélatonine (rappel 20:00) | tous les jours |  | 5 |
+| Rituel du coucher (rappel 18:00) | tous les jours | Mettre son pyjama 5 · Se brosser les dents 5 · Faire pipi 5 · **bonus 5** | 20 |
+| Dents et appareil après les repas (rappel 18:00) | tous les jours | Après le petit-déjeuner 5 · Après le repas de midi 5 · Après le souper 5 · **bonus 5** | 20 |
 | Prendre une douche | tous les jours | Bonus 25 si 4 fois/semaine | 10 |
 
 ## Tâches communes (au premier qui la prend)
