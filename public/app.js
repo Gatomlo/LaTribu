@@ -543,7 +543,7 @@ function sheetStats() {
 
 // ---------- Bibliothèque de tâches types ----------
 function sheetTemplates() {
-  return `<h2>Modèles de tâches</h2><p class="mini" style="margin-top:4px">Touche un modèle pour préremplir la tâche.</p><div style="margin-top:8px">${S.templates.map((t) => `<div class="line"><div style="font-size:24px">${esc(t.icon)}</div><button class="sp" style="text-align:left" data-a="usetpl" data-id="${t.id}"><b style="font-size:14px">${esc(t.title)}</b><div class="mini">${esc(t.label)}${t.moment ? ' · ' + MOMENTS.find((m) => m[0] === t.moment)[1] : ''}</div></button><span class="pts">${t.points}</span><button class="btn ghost sm" data-a="deltpl" data-id="${t.id}" aria-label="Supprimer le modèle">×</button></div>`).join('') || '<p class="mini" style="padding:16px 0">Aucun modèle.</p>'}</div><button class="btn ghost full" style="margin-top:12px" data-a="tplback">Retour</button>`;
+  return `<h2>Modèles de tâches</h2><p class="mini" style="margin-top:4px">Touche un modèle pour préremplir la tâche.</p><div style="margin-top:8px">${S.templates.map((t) => `<div class="line"><div style="font-size:24px">${esc(t.icon)}</div><button class="sp" style="text-align:left" data-a="usetpl" data-id="${t.id}"><b style="font-size:14px">${esc(t.title)}</b><div class="mini">${esc(t.label)}${t.moment ? ' · ' + MOMENTS.find((m) => m[0] === t.moment)[1] : ''}${t.steps && t.steps.length ? ` · ${t.steps.length} sous-tâches` : ''}</div></button><span class="pts">${t.points}</span><button class="btn ghost sm" data-a="deltpl" data-id="${t.id}" aria-label="Supprimer le modèle">×</button></div>`).join('') || '<p class="mini" style="padding:16px 0">Aucun modèle.</p>'}</div><button class="btn ghost full" style="margin-top:12px" data-a="tplback">Retour</button>`;
 }
 
 // ---------- Gérer un enfant (PIN, appareils, suppression) ----------
@@ -729,13 +729,14 @@ const A = {
   tplback() { S.F = S.taskDraft; S.sheet = sheetTask; },
   usetpl(d) {
     const t = S.templates.find((x) => x.id === Number(d.id));
-    S.F = { ...S.taskDraft, title: t.title, description: t.description, icon: t.icon, points: t.points, repeat: t.repeat, days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired };
+    S.F = { ...S.taskDraft, title: t.title, description: t.description, icon: t.icon, points: t.points, repeat: t.repeat, days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired,
+      steps: (t.steps || []).map((x) => ({ label: x.label, points: x.points || '' })), stepsMode: t.stepsMode || 'all', stepsBonus: t.stepsBonus || '' };
     S.sheet = sheetTask;
   },
   async deltpl(d) { await api(`templates/${d.id}`, 'DELETE'); S.templates = await api('templates'); },
   async savetpl() {
     const F = S.F;
-    await api('templates', 'POST', { title: F.title, description: F.description, icon: F.icon, points: Number(F.points), repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired });
+    await api('templates', 'POST', { title: F.title, description: F.description, icon: F.icon, points: Number(F.points), repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, steps: taskBody(F).steps, stepsMode: taskBody(F).stepsMode, stepsBonus: taskBody(F).stepsBonus });
     toast('Modèle enregistré dans la bibliothèque');
   },
   managekid(d) { S.F = { id: Number(d.id), newpin: '' }; S.sheet = sheetManageKid; },

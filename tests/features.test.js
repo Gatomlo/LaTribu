@@ -188,3 +188,15 @@ test('changement de PIN par un parent : ancien PIN refusé, sessions de l\'enfan
   assert.equal((await phone(`kids/${a.id}/login`, 'POST', { pin: '1111' })).status, 401);
   assert.equal((await phone(`kids/${a.id}/login`, 'POST', { pin: '9876' })).status, 200);
 });
+
+test('modèles avec sous-tâches : exemples livrés, enregistrement et relecture', async () => {
+  const templates = require('../lib/templates');
+  const list = templates.list();
+  const rituel = list.find((t) => t.title === 'Rituel du soir');
+  assert.deepEqual(rituel.steps.map((s) => s.label), ['Mettre son pyjama', 'Se brosser les dents', 'Faire pipi']);
+  assert.equal(rituel.stepsMode, 'each');
+  assert.equal(rituel.points, 5, '3 sous-tâches à 1 point + bonus 2');
+  assert.equal(list.find((t) => t.title === 'Ranger la cuisine').stepsMode, 'all');
+  const id = templates.create({ title: 'Perso', points: 4, repeat: 'daily', steps: ['x', 'y'] });
+  assert.deepEqual(templates.list().find((t) => t.id === id).steps.map((s) => s.label), ['x', 'y']);
+});
