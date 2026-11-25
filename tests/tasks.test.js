@@ -276,3 +276,45 @@ test('objectif de la semaine : bonus une seule fois quand N validations sont att
   db.prepare("INSERT OR REPLACE INTO occurrences (task_id, kid_id, due_date, status, points) VALUES (?, ?, ?, 'done', 10)").run(id, kid, others[3]);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM goal_awards WHERE kid_id = ?').get(kid).n, 1);
 });
+
+test('envoi tardif : la mission d\'hier reste envoyable le lendemain ; relances aux enfants', async () => {
+  const { db } = require('../lib/db');
+  const push = require('../lib/push');
+  const kid = Number(db.prepare("INSERT INTO kids (name, age, pin_hash, palette, created_at) VALUES ('Tard', 9, 'x', 0, 1)").run().lastInsertRowid);
+  const id = tasks.create({ title: 'Rituel tardif', kids: [kid], repeat: 'daily', stepsMode: 'each', points: 1, steps: [{ label: 'a', points: 5 }, { label: 'b', points: 5 }] });
+  const yesterday = dates.addDays(dates.today(), -1);
+  const occ = Number(db.prepare("INSERT INTO occurrences (task_id, kid_id, due_date, status, points) VALUES (?, ?, ?, 'todo', 10)").run(id, kid, yesterday).lastInsertRowid);
+  const step = db.prepare('SELECT id FROM task_steps WHERE task_id = ? ORDER BY id').get(id).id;
+  db.prepare('INSERT INTO occurrence_steps (occurrence_id, step_id, checked_at) VALUES (?, ?, ?)').run(occ, step, Date.now());
+  const status = () => db.prepare('SELECT status FROM occurrences WHERE id = ?').get(occ).status;
+  const late = () => tasks.forKid(kid).late.map((o) => o.id);
+
+  tasks.setLateMode('day');
+  assert.deepEqual(late(), [occ], 'toute la journée du lendemain : encore à envoyer');
+  assert.equal(status(), 'todo');
+  // relances : le soir (aujourd'hui, rien de commencé) et le lendemain matin (hier commencé)
+  const sent = await push.tick({ date: dates.today(), minutes: 8 * 60 });
+  assert.ok(sent.some((s) => s.title === 'Hier à envoyer' && s.to === `kid:${kid}`));
+  assert.deepEqual((await push.tick({ date: dates.today(), minutes: 8 * 60 })).filter((s) => s.title === 'Hier à envoyer'), [], 'une seule fois');
+  tasks.declare(kid, occ); // envoyée le lendemain : acceptée
+  assert.equal(status(), 'wait');
+  assert.equal(tasks.approve(occ).earned, 5, 'validée normalement');
+
+  db.prepare("UPDATE occurrences SET status = 'todo' WHERE id = ?").run(occ);
+  tasks.setLateMode('none');
+  assert.deepEqual(late(), [], 'sans envoi tardif : plus rien d\'hier');
+  assert.equal(status(), 'missed');
+  db.prepare("UPDATE occurrences SET status = 'todo' WHERE id = ?").run(occ);
+  tasks.setLateMode('noon');
+  const noonPassed = dates.nowMinutes() >= 12 * 60;
+  assert.equal(late().length, noonPassed ? 0 : 1, 'jusqu\'à midi : fermée à midi');
+  assert.throws(() => tasks.setLateMode('jamais'));
+
+  // relance du soir : mission du jour commencée mais pas envoyée
+  const today = dates.today();
+  const occT = Number(db.prepare("INSERT OR REPLACE INTO occurrences (task_id, kid_id, due_date, status, points) VALUES (?, ?, ?, 'todo', 10)").run(id, kid, today).lastInsertRowid);
+  db.prepare('INSERT INTO occurrence_steps (occurrence_id, step_id, checked_at) VALUES (?, ?, ?)').run(occT, step, Date.now());
+  const evening = await push.tick({ date: today, minutes: 19 * 60 + 30 });
+  assert.ok(evening.some((s) => s.title === 'Missions commencées' && s.to === `kid:${kid}`));
+  tasks.setLateMode('noon');
+});

@@ -21,7 +21,7 @@ test('réglages, clé VAPID et abonnements conservés après redémarrage puis m
     db.prepare("INSERT INTO kids (name, palette, pin_hash, created_at) VALUES ('Alex', 0, 'x', 1)").run();
     db.prepare("INSERT INTO push_subscriptions (endpoint, p256dh, auth, role, kid_id, created_at) VALUES ('https://push.example/a', 'p', 'a', 'kid', 1, 1)").run();
     console.log(JSON.stringify({ n: push.notifSettings(), key }));`);
-  assert.deepEqual(first.n, { alert: false, digest: '19:00', remindAgain: false });
+  assert.deepEqual(first.n, { alert: false, digest: '19:00', remindAgain: false, nudge: '19:30' });
 
   // Simple redémarrage : rien ne change.
   const again = run(dir, `const push = require('./lib/push'); console.log(JSON.stringify({ n: push.notifSettings(), key: push.publicKey() }));`);

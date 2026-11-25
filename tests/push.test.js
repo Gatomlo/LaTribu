@@ -48,7 +48,7 @@ test('abonnements : accès, validation, clé VAPID, réglages', async () => {
   assert.equal((await kid('push/subscribe', 'POST', sub('kid1'))).status, 200);
   assert.equal((await parent('push/subscribe', 'POST', sub('par1'))).status, 200);
 
-  assert.deepEqual((await parent('settings')).data.notif, { alert: true, digest: '20:00', remindAgain: true });
+  assert.deepEqual((await parent('settings')).data.notif, { alert: true, digest: '20:00', remindAgain: true, nudge: '19:30' });
   assert.equal((await parent('settings', 'PUT', { notif: { digest: '25:00' } })).status, 400);
   assert.equal((await kid('settings')).status, 403);
 

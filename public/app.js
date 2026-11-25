@@ -52,7 +52,7 @@ async function api(path, method = 'GET', body) {
 }
 
 // ---------- État ----------
-const S = { viewAs: null, shopKid: null, shopLimit: '', fkind: 'tasks', taskKid: '', taskMoment: '', session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
+const S = { viewAs: null, shopKid: null, shopLimit: '', fkind: 'tasks', taskKid: '', taskMoment: '', session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], late: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -207,6 +207,10 @@ function histRow(h) {
   return `<div class="line"><div class="sp"><b style="font-size:14px;font-weight:500">${esc(h.label)}</b><div class="mini">${dl(h.at)}</div></div><span class="pts ${h.delta < 0 ? 'neg' : ''}">${h.delta > 0 ? '+' : ''}${h.delta}</span></div>`;
 }
 const kudosCard = () => (S.me.kudos && S.me.kudos.length ? `<div class="sec">Bravos reçus</div>${S.me.kudos.slice(0, 3).map((k) => `<div class="line"><div style="width:52px;flex:none">${stk(k.sticker)}</div><div class="sp"><b style="font-size:14px">${esc(k.label)}</b><div class="mini">${k.note ? esc(k.note) + ' · ' : ''}${dl(k.at)}</div></div>${k.points ? `<span class="pts">+${k.points}</span>` : ''}</div>`).join('')}` : '');
+// Envoi tardif : les missions d'hier non envoyées restent possibles jusqu'à midi (ou toute la journée).
+const lateSection = () => ((S.missions.late || []).length
+  ? `<div class="sec">Hier · encore à envoyer</div><p class="mini" style="margin:-6px 0 4px">${S.missions.lateUntil === 'day' ? 'Tu peux encore les envoyer aujourd\'hui.' : 'Tu peux encore les envoyer jusqu\'à midi.'}</p>${S.missions.late.map((o) => missionRow(o, true)).join('')}`
+  : '');
 function renderKid(a, nav) {
   const m = S.me;
   nav.innerHTML = tabs([['home', 'home', 'Accueil'], ['missions', 'target', 'Missions'], ['shop', 'bag', 'Magasin'], ['me', 'user', 'Moi']], S.tab);
@@ -217,7 +221,7 @@ function renderKid(a, nav) {
   const preview = S.viewAs ? `<div style="position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;background:#2a2418;color:#fff;padding:8px 8px 8px 14px;border-radius:12px;margin-bottom:10px;font-size:13px">${ic('user')}<span class="sp">Vue de <b>${esc(m.name)}</b> · lecture seule</span><button class="btn sm" data-a="exitview">Quitter</button></div>` : '';
   if (S.tab === 'home') {
     const done = M.today.filter((o) => o.status === 'done').length;
-    a.innerHTML = hero + offlineBanner() + readyBanner() + pushBanner() + kudosCard() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
+    a.innerHTML = hero + offlineBanner() + readyBanner() + pushBanner() + kudosCard() + goalCard() + lateSection() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
       : '<div class="card mini" style="margin-top:14px;text-align:center">Rien de prévu aujourd\'hui. Jette un œil aux missions à prendre.</div>');
   } else if (S.tab === 'missions') {
     a.innerHTML = `<h2>Missions</h2><div class="sec">À prendre</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${o.kind === 'open' ? 'Sans date' : 'Pour aujourd\'hui'} · premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Rien à prendre pour le moment.'))
@@ -286,12 +290,16 @@ function renderParent(a, nav) {
     <div class="line" data-a="notifagain">${ic('clock')}<div class="sp"><b>Second rappel aux enfants</b><div class="mini">1 h après l'heure si la tâche n'est pas faite</div></div>${sw(S.settings.notif.remindAgain)}</div>
     <div class="line" style="border:0;padding-bottom:6px">${ic('bell')}<div class="sp"><b>Rappel quotidien de validation</b><div class="mini">S'il reste des éléments en attente</div></div></div>
     <div class="opts" style="padding-bottom:14px">${[['', 'Aucun'], ['19:00', '19:00'], ['20:00', '20:00'], ['21:00', '21:00']].map(([v, l]) => `<button class="${(S.settings.notif.digest || '') === v ? 'on' : ''}" data-a="notifdigest" data-v="${v}">${l}</button>`).join('')}</div>
+    <div class="line" style="border:0;padding-bottom:6px">${ic('bell')}<div class="sp"><b>Relance du soir aux enfants</b><div class="mini">Missions commencées mais pas envoyées (et « hier à envoyer » à 8 h)</div></div></div>
+    <div class="opts" style="padding-bottom:14px">${[['', 'Aucune'], ['18:30', '18:30'], ['19:30', '19:30'], ['20:30', '20:30']].map(([v, l]) => `<button class="${(S.settings.notif.nudge || '') === v ? 'on' : ''}" data-a="notifnudge" data-v="${v}">${l}</button>`).join('')}</div>
     ${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Envoyer une notification de test</button>' : ''}</div>
     <div class="sec">Preuve par photo</div><div class="card" style="padding:0 14px">
     <div class="line" data-a="photoglobal">${ic('camera')}<div class="sp"><b>Demander des photos</b><div class="mini">Interrupteur général : désactivé, aucune photo n'est demandée</div></div>${sw(S.settings.photo.enabled)}</div>
     <div class="line" style="border:0;padding-bottom:6px"><div class="sp"><b>Conservation</b><div class="mini">Photo supprimée après la décision</div></div></div>
     <div class="opts" style="padding-bottom:14px">${[[3, '3 jours'], [7, '7 jours'], [30, '30 jours']].map(([v, l]) => `<button class="${S.settings.photo.keepDays === v ? 'on' : ''}" data-a="photokeep" data-v="${v}">${l}</button>`).join('')}</div></div>
     <p class="mini" style="margin:8px 2px 0">Dans une tâche, « Photo demandée » active l'exigence pour cette tâche seulement.</p>
+    <div class="sec">Envoi tardif</div><div class="card"><p class="mini">Un enfant qui a oublié d'envoyer une mission peut encore le faire le lendemain. Elle devient « manquée » ensuite.</p>
+    <div class="opts" style="margin-top:8px">${[['none', 'Non'], ['noon', 'Jusqu\'à midi'], ['day', 'Toute la journée']].map(([v, l]) => `<button class="${(S.settings.lateSend || 'noon') === v ? 'on' : ''}" data-a="latesend" data-v="${v}">${l}</button>`).join('')}</div></div>
     <div class="sec">Niveaux</div><div class="card"><p class="mini">XP à gagner pour passer au niveau suivant. Les niveaux débloquent des objets, avatars et décors dans la boutique.</p>
     <div class="line" style="border:0;padding:6px 0"><div class="sp"><b>XP par niveau</b></div><input id="f_lxp" type="number" min="10" inputmode="numeric" value="${S.settings.levelXp ?? ''}" style="width:90px;text-align:center"></div>
     <button class="btn ghost sm full" style="margin-top:8px" data-a="savelevel">Enregistrer</button></div>
@@ -668,7 +676,7 @@ const kidCacheSave = () => { try { localStorage.setItem(CKEY, JSON.stringify({ s
 const kidCacheLoad = () => { try { return JSON.parse(localStorage.getItem(CKEY) || 'null'); } catch { return null; } };
 function applyQueued() {
   const ids = new Set(qLoad().map((i) => i.occ));
-  for (const o of S.missions.today) if (ids.has(o.id) && o.status !== 'done') { o.status = 'wait'; o.queued = true; }
+  for (const o of [...S.missions.today, ...(S.missions.late || [])]) if (ids.has(o.id) && o.status !== 'done') { o.status = 'wait'; o.queued = true; }
 }
 let flushing = false;
 async function qFlush() {
@@ -687,6 +695,7 @@ async function qFlush() {
   } finally { flushing = false; }
   if (sent) { toast(`${sent} mission${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''} aux parents`); try { await loadData(); } catch { /* réessai plus tard */ } render(); }
 }
+const findMission = (id) => [...S.missions.today, ...(S.missions.late || [])].find((o) => o.id === Number(id));
 async function submitMission(id, photo, skip) {
   const body = photo ? { photo } : skip ? { skipPhoto: true, photoNote: skip.note || '' } : {};
   try {
@@ -698,7 +707,7 @@ async function submitMission(id, photo, skip) {
   }
 }
 // Missions à sous-tâches commencées mais pas envoyées (points par sous-tâche : l'envoi reste manuel tant que tout n'est pas coché).
-const readyToSend = () => S.missions.today.filter((o) => (o.status === 'todo' || o.status === 'refused') && o.steps && o.steps.length && (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked)));
+const readyToSend = () => [...S.missions.today, ...(S.missions.late || [])].filter((o) => (o.status === 'todo' || o.status === 'refused') && o.steps && o.steps.length && (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked)));
 function readyBanner() {
   const r = readyToSend();
   if (!r.length || S.viewAs) return '';
@@ -787,9 +796,11 @@ const A = {
   async pushtest() { const r = await api('push/test', 'POST', {}); toast(r.sent ? 'Notification envoyée' : 'Aucun appareil abonné'); },
   async notifalert() { S.settings = await api('settings', 'PUT', { notif: { alert: !S.settings.notif.alert } }); },
   async notifagain() { S.settings = await api('settings', 'PUT', { notif: { remindAgain: !S.settings.notif.remindAgain } }); },
+  async notifnudge(d) { S.settings = await api('settings', 'PUT', { notif: { nudge: d.v || null } }); },
+  async latesend(d) { S.settings = await api('settings', 'PUT', { lateSend: d.v }); toast('Envoi tardif mis à jour'); },
   async notifdigest(d) { S.settings = await api('settings', 'PUT', { notif: { digest: d.v || null } }); },
   sound() { try { localStorage.setItem('tribu_sound', soundOn() ? '0' : '1'); } catch { /* stockage indisponible */ } beep(); },
-  viewas(d) { S.viewAs = Number(d.id); S.view = 'kid'; S.tab = 'home'; S.me = null; S.missions = { today: [], open: [], upcoming: [] }; S.sheet = null; },
+  viewas(d) { S.viewAs = Number(d.id); S.view = 'kid'; S.tab = 'home'; S.me = null; S.missions = { today: [], late: [], open: [], upcoming: [] }; S.sheet = null; },
   exitview() { S.viewAs = null; S.view = 'parent'; S.tab = 'kids'; S.me = null; S.sheet = null; },
   async streakmin(d) { await api(`kids/${S.F.id}`, 'PATCH', { streakMin: Number(d.v) }); toast('Série mise à jour'); },
   async kudossheet(d) { S.stickers = S.stickers || await api('stickers'); S.F = { id: Number(d.id), sticker: 'bravo', note: '', kpts: '' }; S.sheet = sheetKudos; },
@@ -927,13 +938,13 @@ const A = {
 
   // enfant
   async done(d) {
-    const m = S.missions.today.find((o) => o.id === Number(d.id));
+    const m = findMission(d.id);
     if (m && m.photoRequired) return openPhotoAsk(m); // d'abord le descriptif de la photo souhaitée
     await submitMission(Number(d.id), null);
   },
   // Cocher la DERNIÈRE sous-tâche envoie aussitôt la mission aux parents : l'enfant n'a pas à penser à appuyer sur « fait ».
   async step(d) {
-    const m = S.missions.today.find((o) => o.id === Number(d.id));
+    const m = findMission(d.id);
     const completing = !!m && d.on === '1' && m.steps.every((x) => x.checked || x.id === Number(d.step));
     await api(`occurrences/${d.id}/steps/${d.step}`, 'PUT', { checked: d.on === '1' });
     if (completing) { if (m.photoRequired) openPhotoAsk(m); else await submitMission(Number(d.id), null); }
