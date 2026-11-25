@@ -19,6 +19,7 @@ const P = {
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
   x: '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
   filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
   chevl: '<polyline points="15 18 9 12 15 6"/>',
@@ -127,8 +128,7 @@ async function refresh() {
 function render() {
   document.querySelectorAll('.sheet-bg').forEach((e) => e.remove());
   const a = $('#app'), nav = $('#nav'), root = document.documentElement;
-  if (S.view === 'kid' && S.me) { const c = PAL[S.me.palette % PAL.length]; root.style.setProperty('--acc', c[0]); root.style.setProperty('--acc2', c[1]); }
-  else { root.style.removeProperty('--acc'); root.style.removeProperty('--acc2'); }
+  root.style.removeProperty('--acc'); root.style.removeProperty('--acc2'); // violet de la marque pour tous (l'identité de l'enfant passe par son avatar)
   nav.innerHTML = '';
 
   if (S.view === 'setup') {
@@ -214,14 +214,18 @@ const lateSection = () => ((S.missions.late || []).length
 function renderKid(a, nav) {
   const m = S.me;
   nav.innerHTML = tabs([['home', 'home', 'Accueil'], ['missions', 'target', 'Missions'], ['shop', 'bag', 'Magasin'], ['me', 'user', 'Moi']], S.tab);
-  const c = PAL[m.palette % PAL.length];
-  const hero = `<div class="hero" style="--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(m)}<div class="sp"><small>${esc(m.name)}</small><div style="font-weight:700;font-size:18px">Niveau ${m.level}</div></div><span class="chip">${ic('flame')}${m.streak} j</span></div>
-    <div style="margin-top:16px"><small>Points</small><div class="big">${m.points}</div></div><div class="bar"><i style="width:${m.xpInLevel / m.levelXp * 100}%"></i></div><small>${m.levelXp - m.xpInLevel} XP avant le niveau ${m.level + 1}</small></div>`;
+  // Carte joueur : avatar dans un anneau de progression du niveau, points, XP, prochain déblocage.
+  const pct = Math.min(100, Math.round(m.xpInLevel / m.levelXp * 100)), circ = 2 * Math.PI * 46, nu = m.nextUnlock;
+  const hero = `<section class="hero"><div class="player"><div class="avring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="6"/><circle cx="50" cy="50" r="46" fill="none" stroke="#C8FF3D" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(circ * pct / 100).toFixed(1)} ${circ.toFixed(1)}" transform="rotate(-90 50 50)"/></svg>${avatar(m, 78)}<span class="lvl">${m.level}</span></div>
+    <div class="meta"><small>Mes points</small><div class="big">${m.points}</div><div class="row" style="justify-content:space-between;margin-top:6px"><small>Niveau ${m.level}</small><small>${m.xpInLevel} / ${m.levelXp} XP</small></div><div class="bar" style="margin:5px 0 0"><i style="width:${pct}%"></i></div></div></div>
+    ${nu ? `<div class="teaser">${ic('lock')}<span class="sp">Niveau ${nu.level} : ${nu.items.map(esc).join(', ')}</span><button class="btn sm" style="background:#fff;color:var(--violetd);box-shadow:none" data-a="tab" data-t="shop">Boutique</button></div>` : ''}</section>`;
+  const greet = `<div class="hello"><div><div class="cap">${esc(new Date().toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' }))}</div><h2>Salut ${esc(m.name)}</h2></div><span class="streak">${ic('flame')}${m.streak} j</span></div>`;
   const M = S.missions;
   const preview = S.viewAs ? `<div style="position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;background:#2a2418;color:#fff;padding:8px 8px 8px 14px;border-radius:12px;margin-bottom:10px;font-size:13px">${ic('user')}<span class="sp">Vue de <b>${esc(m.name)}</b> · lecture seule</span><button class="btn sm" data-a="exitview">Quitter</button></div>` : '';
   if (S.tab === 'home') {
     const done = M.today.filter((o) => o.status === 'done').length;
-    a.innerHTML = hero + offlineBanner() + readyBanner() + pushBanner() + kudosCard() + goalCard() + lateSection() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
+    a.innerHTML = greet + hero + offlineBanner() + readyBanner() + pushBanner() + kudosCard() + goalCard() + lateSection() + (M.today.length
+      ? `<div class="row" style="margin-top:26px;justify-content:space-between"><h2 style="font-size:22px">Aujourd'hui</h2><span class="mini" style="font-weight:600">${done} sur ${M.today.length} faites</span></div><div class="dayseg" style="grid-template-columns:repeat(${M.today.length},1fr)" aria-hidden="true">${M.today.map((o) => `<i class="${o.status === 'done' ? 'on' : ''}"></i>`).join('')}</div>${byMoment(M.today)}`
       : '<div class="card mini" style="margin-top:14px;text-align:center">Rien de prévu aujourd\'hui. Jette un œil aux missions à prendre.</div>');
   } else if (S.tab === 'missions') {
     a.innerHTML = `<h2>Missions</h2><div class="sec">À prendre</div>` + (M.open.length ? M.open.map((o) => `<div class="task"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${o.kind === 'open' ? 'Sans date' : 'Pour aujourd\'hui'} · premier arrivé, premier servi</small>${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}</div><span class="pts">+${o.points}</span><button class="btn sm" data-a="claim" data-id="${o.id}">Prendre</button></div>`).join('') : emptyCard('Rien à prendre pour le moment.'))
@@ -277,7 +281,7 @@ function renderParent(a, nav) {
   } else if (S.tab === 'tasks') {
     const shown = S.tasks.filter(taskMatch);
     const plan = shown.filter((t) => t.kind === 'plan'), open = shown.filter((t) => t.kind === 'open');
-    const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidBadge).join('') : kidBadge(null))} ${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}${t.photoRequired ? `<span class="chip" style="padding:2px 7px;font-size:11px" title="Photo preuve demandée">${ic('camera')}Photo</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}${t.steps && t.steps.length ? `<div class="mini" style="margin-top:3px">${t.steps.length} sous-tâche${t.steps.length > 1 ? 's' : ''}</div>` : ''}</div><span class="tag ${t.repeat === 'date' ? 'o' : 'p'}">${t.kind === 'open' ? 'Ouverte' : t.repeat === 'date' ? 'Ponctuelle' : 'Récurrente'}</span><span class="pts">${t.points}</span></div>`;
+    const row = (t) => `<div class="task" data-a="edittask" data-id="${t.id}"><div class="ic">${esc(t.icon)}</div><div class="sp"><b>${esc(t.title)}</b><small>${(t.kids.length ? t.kids.map(kidBadge).join('') : kidBadge(null))} ${t.moment ? MOMENTS.find((m) => m[0] === t.moment)[1] + ' · ' : ''}${esc(t.label)}${t.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(t.remindAt)}</span>` : ''}${t.photoRequired ? `<span class="chip" style="padding:2px 7px;font-size:11px" title="Photo preuve demandée">${ic('camera')}Photo</span>` : ''}</small>${t.description ? `<div class="mini" style="margin-top:3px">${esc(t.description)}</div>` : ''}${t.steps && t.steps.length ? `<div class="mini" style="margin-top:3px">${t.steps.length} sous-tâche${t.steps.length > 1 ? 's' : ''}</div>` : ''}</div><span class="pts">${t.points}</span></div>`;
     a.innerHTML = `<div class="row" style="gap:8px"><h2 class="sp">Tâches</h2>${filterButton('tasks')}<button class="btn sm" data-a="newtask">${ic('plus')}Nouvelle</button></div>${filterSummary('tasks')}<div class="sec">Planifiées (${plan.length})</div>${plan.map(row).join('') || emptyCard(S.tasks.length ? 'Aucune tâche pour ce filtre.' : 'Aucune tâche.')}<div class="sec">Ouvertes, sans date (${open.length})</div>${open.map(row).join('') || emptyCard('Aucune tâche ouverte.')}`;
   } else if (S.tab === 'kids') {
     a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div><button class="eyebtn" data-a="viewas" data-id="${k.id}" aria-label="Voir comme ${esc(k.name)}" title="Voir comme ${esc(k.name)}">${ic('eye')}</button></div>
@@ -414,9 +418,9 @@ function goalCard() {
 }
 function kidShop() {
   const K = S.me, sh = S.shop;
-  const SEGS = [['rew', 'Récompenses'], ['acc', 'Accessoires'], ['ava', 'Avatars'], ['sce', 'Décors']];
+  const SEGS = [['rew', 'Cadeaux'], ['acc', 'Objets'], ['ava', 'Avatars'], ['sce', 'Décors']];
   const seg = `<div class="seg">${SEGS.map(([v, l]) => `<button class="${S.shopSeg === v ? 'on' : ''}" data-a="shopseg" data-v="${v}">${l}</button>`).join('')}</div>`;
-  const head = `<div class="row"><h2 class="sp">Magasin</h2><span class="pts" style="font-size:15px">${K.points} pts</span></div>${seg}`;
+  const head = `<div class="row"><h2 class="sp">Boutique</h2><span class="pill pts">${K.points}</span></div><div style="margin-top:16px">${seg}</div>`;
   if (S.shopSeg !== 'rew') {
     const kind = { acc: 'accessory', ava: 'avatar', sce: 'scene' }[S.shopSeg] || 'accessory';
     const SLOTS = { head: 'Sur la tête', face: 'Sur le visage', neck: 'Autour du cou' };
@@ -569,7 +573,9 @@ function beep() {
 function sheetCelebrate() {
   const c = S.me.celebrate;
   const head = c.perfectDay ? ['🎉', `Tout est fait, ${S.me.name} !`, 'Journée parfaite !'] : c.levelUp ? ['🎉', `Niveau ${c.levelUp} !`, c.unlocks && c.unlocks.length ? 'De nouveaux objets se débloquent.' : ''] : c.badges.length ? ['🏅', 'Nouveau badge !', ''] : ['💌', c.kudos.length > 1 ? 'Des bravos pour toi !' : 'Un bravo pour toi !', ''];
-  return `<div style="text-align:center"><div style="font-size:54px">${head[0]}</div><h2 style="margin-top:6px">${esc(head[1])}</h2>${head[2] ? `<p class="mini" style="margin-top:4px">${head[2]}</p>` : ''}
+  const ring = c.levelUp && !c.perfectDay ? `<div class="levelring"><svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="92" fill="#fff" stroke="rgba(108,77,255,.14)" stroke-width="10"/><circle cx="100" cy="100" r="92" fill="none" stroke="#6C4DFF" stroke-width="10" stroke-linecap="round" stroke-dasharray="578 578" transform="rotate(-90 100 100)"/></svg><div class="num"><small>Niveau</small><b>${c.levelUp}</b></div></div>` : `<div style="font-size:54px">${head[0]}</div>`;
+  if (c.levelUp && !c.perfectDay) head[1] = `Level up, ${S.me.name} !`;
+  return `<div style="text-align:center">${ring}<h2 style="margin-top:10px">${esc(head[1])}</h2>${head[2] ? `<p class="mini" style="margin-top:4px">${head[2]}</p>` : ''}
   ${c.perfectDay && c.levelUp ? `<p style="margin-top:10px"><b>Niveau ${c.levelUp} !</b></p>` : ''}
   ${c.badges.length ? `<div class="badges" style="margin-top:14px">${c.badges.map((b) => `<div class="bdg"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div>` : (c.perfectDay || c.kudos.length ? '' : '<p class="mini" style="margin-top:6px">Bravo, tu progresses !</p>')}
   ${c.unlocks && c.unlocks.length ? `<div class="sec" style="text-align:left">Nouveau dans la boutique !</div><div class="unl">${c.unlocks.map((x) => `<div>${avatar(S.me, 64, { look: tryOn(x) })}<small>${esc(x.title)}</small></div>`).join('')}</div>` : ''}
