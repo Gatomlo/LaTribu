@@ -178,7 +178,7 @@ function stepList(o, can) {
   if (!o.steps || !o.steps.length) return '';
   const n = o.steps.filter((x) => x.checked).length, each = o.stepsMode === 'each', done = o.status === 'done';
   const mark = (x) => (done && each ? (x.approved ? '☑' : '✗') : x.checked ? '☑' : '☐');
-  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="mini" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? 'text-decoration:line-through;opacity:.7' : ''}"><span aria-hidden="true">${mark(x)}</span><span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · les sous-tâches non faites ne rapportent rien' : ''}${each && o.stepsBonus ? ` · bonus +${o.stepsBonus} si tout est fait` : ''}</div></div>`;
+  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="mini" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? 'text-decoration:line-through;opacity:.7' : ''}"><span aria-hidden="true">${mark(x)}</span><span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · non faites : 0 pt' : ''}${each && o.stepsBonus ? ` · bonus +${o.stepsBonus} si tout est fait` : ''}</div></div>`;
 }
 // Validation parent : en mode « points par sous-tâche », chaque sous-tâche cochée se valide ou non (décochée = perdue).
 const desel = (S.desel = {});
@@ -200,8 +200,8 @@ function missionRow(o, interactive) {
   const box = interactive ? `<button class="chk ${st}" data-a="done" data-id="${o.id}" aria-label="${st === 'todo' || st === 'refused' ? 'Marquer comme fait' : st === 'wait' ? 'Envoyé aux parents' : 'Validé'}" ${can && (!o.steps || !o.steps.length || (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked))) ? '' : 'disabled'}>${icon}</button>` : '';
   return `<div class="task mission ${st === 'refused' ? '' : st}">${box}${interactive ? '' : `<div class="ic">${esc(o.icon)}</div>`}<div class="sp"><b>${interactive ? esc(o.icon) + ' ' : ''}${esc(o.title)}</b>
     <small>${esc(o.label)}${o.photoRequired && (st === 'todo' || st === 'refused') ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('camera')}Photo</span>` : ''}${o.queued ? '<span class="chip" style="padding:2px 7px;font-size:11px">En attente d\'envoi</span>' : ''}${o.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(o.remindAt)}</span>` : ''}</small>
-    ${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}${st === 'refused' ? `<div class="mini" style="margin-top:3px;color:var(--ko)">Refusé${o.note ? ' : ' + esc(o.note) : ''}. À refaire.</div>` : ''}${stepList(o, can)}</div>
-    <span class="pts">+${o.points}</span></div>`;
+    ${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}${st === 'refused' ? `<div class="mini" style="margin-top:3px;color:var(--ko)">Refusé${o.note ? ' : ' + esc(o.note) : ''}. À refaire.</div>` : ''}${interactive ? '' : stepList(o, can)}</div>
+    <span class="pts">+${o.points}</span>${interactive && o.steps && o.steps.length ? `<div class="msteps">${stepList(o, can)}</div>` : ''}</div>`;
 }
 function byMoment(list) {
   const now = new Date().getHours(), cur = now < 12 ? 'matin' : now < 18 ? 'apres' : 'soir';

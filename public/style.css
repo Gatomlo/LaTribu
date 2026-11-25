@@ -133,3 +133,7 @@ input:focus{outline:2px solid var(--acc);border-color:transparent}
 .task.mission{align-items:flex-start}
 .task.mission .chk{margin-top:1px}
 .task.mission .pts{margin-top:4px}
+
+.task.mission{flex-wrap:wrap}
+.msteps{flex:1 0 100%;margin-top:-4px}
+.task .mini b{font-size:13px}
