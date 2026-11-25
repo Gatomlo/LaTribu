@@ -18,6 +18,7 @@ const P = {
   bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  x: '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
   eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
   filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
   chevl: '<polyline points="15 18 9 12 15 6"/>',
@@ -177,31 +178,20 @@ const emptyCard = (text) => `<div class="card mini">${text}</div>`;
 function stepList(o, can) {
   if (!o.steps || !o.steps.length) return '';
   const n = o.steps.filter((x) => x.checked).length, each = o.stepsMode === 'each', done = o.status === 'done';
-  const mark = (x) => (done && each ? (x.approved ? '☑' : '✗') : x.checked ? '☑' : '☐');
-  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="mini" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? 'text-decoration:line-through;opacity:.7' : ''}"><span aria-hidden="true">${mark(x)}</span><span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · non faites : 0 pt' : ''}${each && o.stepsBonus ? ` · bonus +${o.stepsBonus} si tout est fait` : ''}</div></div>`;
+  // Case à gauche de chaque sous-tâche : vide, cochée, ou croix (non validée par le parent).
+  const box = (x) => (done && each && !x.approved ? `<span class="sbox lost" aria-hidden="true">${ic('x')}</span>` : `<span class="sbox ${x.checked ? 'on' : ''}" aria-hidden="true">${x.checked ? ic('check') : ''}</span>`);
+  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="sstep ${x.checked ? 'ck' : ''}" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'}>${box(x)}<span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · non faites : 0 pt' : ''}${each && o.stepsBonus ? ` · bonus +${o.stepsBonus} si tout est fait` : ''}</div></div>`;
 }
-// Validation parent : en mode « points par sous-tâche », chaque sous-tâche cochée se valide ou non (décochée = perdue).
-const desel = (S.desel = {});
-const reviewPts = (o) => {
-  if (o.stepsMode !== 'each') return o.points;
-  const ok = o.steps.filter((x) => x.checked && !(desel[o.id] || []).includes(x.id));
-  return ok.reduce((n, x) => n + x.points, 0) + (ok.length === o.steps.length ? o.stepsBonus || 0 : 0);
-};
-function reviewSteps(o) {
-  if (o.stepsMode !== 'each') return stepList(o, false);
-  return `<div style="margin-top:6px">${o.steps.map((x) => {
-    const on = x.checked && !(desel[o.id] || []).includes(x.id);
-    return `<button class="mini" ${x.checked ? `data-a="rvstep" data-id="${o.id}" data-step="${x.id}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? '' : 'opacity:.5'}"><span aria-hidden="true">${on ? '☑' : x.checked ? '☐' : '✗'}</span><span class="sp">${esc(x.label)}${x.checked ? '' : ' (non faite)'}</span><b>+${x.points}</b></button>`;
-  }).join('')}</div>`;
-}
+// Mission de l'enfant : icône de la tâche en haut à gauche, grande case « fait » à droite, sous-tâches sur toute la largeur dessous.
 function missionRow(o, interactive) {
   const st = o.status, can = interactive && (st === 'todo' || st === 'refused');
   const icon = st === 'wait' ? ic('clock') : ic('check'); // case vide : une coche pâle invite à toucher ; pleine quand c'est fait
   const box = interactive ? `<button class="chk ${st}" data-a="done" data-id="${o.id}" aria-label="${st === 'todo' || st === 'refused' ? 'Marquer comme fait' : st === 'wait' ? 'Envoyé aux parents' : 'Validé'}" ${can && (!o.steps || !o.steps.length || (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked))) ? '' : 'disabled'}>${icon}</button>` : '';
-  return `<div class="task mission ${st === 'refused' ? '' : st}">${box}${interactive ? '' : `<div class="ic">${esc(o.icon)}</div>`}<div class="sp"><b>${interactive ? esc(o.icon) + ' ' : ''}${esc(o.title)}</b>
-    <small>${esc(o.label)}${o.photoRequired && (st === 'todo' || st === 'refused') ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('camera')}Photo</span>` : ''}${o.queued ? '<span class="chip" style="padding:2px 7px;font-size:11px">En attente d\'envoi</span>' : ''}${o.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(o.remindAt)}</span>` : ''}</small>
+  const pts = `<span class="pts">+${o.points}</span>`;
+  return `<div class="task mission ${st === 'refused' ? '' : st}"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b>
+    <small>${interactive ? pts : ''}${esc(o.label)}${o.photoRequired && (st === 'todo' || st === 'refused') ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('camera')}Photo</span>` : ''}${o.queued ? '<span class="chip" style="padding:2px 7px;font-size:11px">En attente d\'envoi</span>' : ''}${o.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(o.remindAt)}</span>` : ''}</small>
     ${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}${st === 'refused' ? `<div class="mini" style="margin-top:3px;color:var(--ko)">Refusé${o.note ? ' : ' + esc(o.note) : ''}. À refaire.</div>` : ''}${interactive ? '' : stepList(o, can)}</div>
-    <span class="pts">+${o.points}</span>${interactive && o.steps && o.steps.length ? `<div class="msteps">${stepList(o, can)}</div>` : ''}</div>`;
+    ${interactive ? box : pts}${interactive && o.steps && o.steps.length ? `<div class="msteps">${stepList(o, can)}</div>` : ''}</div>`;
 }
 function byMoment(list) {
   const now = new Date().getHours(), cur = now < 12 ? 'matin' : now < 18 ? 'apres' : 'soir';

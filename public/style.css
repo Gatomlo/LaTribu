@@ -131,9 +131,21 @@ input:focus{outline:2px solid var(--acc);border-color:transparent}
 .chk:disabled{border-color:var(--line);color:var(--mute);cursor:not-allowed}.chk:disabled svg{opacity:.2}
 .task.mission.wait b,.task.mission.done b{text-decoration:line-through;text-decoration-thickness:2px;color:var(--mute)}
 .task.mission{align-items:flex-start}
-.task.mission .chk{margin-top:1px}
-.task.mission .pts{margin-top:4px}
 
 .task.mission{flex-wrap:wrap}
 .msteps{flex:1 0 100%;margin-top:-4px}
 .task .mini b{font-size:13px}
+
+/* Mission : icône en haut à gauche, case « fait » à droite ; cases des sous-tâches grandes, à gauche de chaque ligne */
+.task.mission .ic,.task.mission .chk{margin-top:2px}
+.task.mission small .pts{margin-right:2px}
+.chk{width:50px;height:50px}
+.sstep{display:flex;gap:12px;align-items:center;text-align:left;padding:7px 0;width:100%;font-size:14px;color:var(--ink)}
+.sstep:disabled{opacity:1}
+.sstep .sp{min-width:0}.sstep b{font-size:13px;font-weight:700;color:var(--mute)}
+.sstep.ck .sp{text-decoration:line-through;color:var(--mute)}
+.sbox{width:26px;height:26px;border-radius:8px;border:2.5px solid var(--line);display:grid;place-items:center;flex:none;color:#fff;transition:.15s}
+.sbox svg{width:16px;height:16px;stroke-width:4}
+button.sstep:not(:disabled) .sbox{border-color:var(--acc)}
+.sbox.on{background:var(--acc);border-color:var(--acc)}
+.sbox.lost{border-color:var(--ko);color:var(--ko)}
