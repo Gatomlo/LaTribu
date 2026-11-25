@@ -193,3 +193,28 @@ test('sous-tâches : cochées par l\'enfant, exigées avant « fait », visibles
   const after = tasks.review().find((o) => o.id === mission.id);
   assert.deepEqual(after.steps.map((s) => [s.label, s.checked]), [['Lave-vaisselle vidé', true]]);
 });
+
+test('sous-tâches avec points par sous-tâche : seules les validées rapportent', () => {
+  const { db } = require('../lib/db');
+  const points = require('../lib/points');
+  const kid = Number(db.prepare("INSERT INTO kids (name, age, pin_hash, palette, created_at) VALUES ('Léo', 9, 'x', 0, 1)").run().lastInsertRowid);
+  assert.throws(() => tasks.clean({ title: 'X', repeat: 'daily', stepsMode: 'each', steps: [{ label: 'a' }] }), /Points de chaque/);
+  assert.throws(() => tasks.clean({ title: 'X', repeat: 'daily', stepsMode: 'each', steps: [] }), /au moins une/);
+  const id = tasks.create({ title: 'Cuisine', kind: 'open', kids: [kid], stepsMode: 'each', points: 999,
+    steps: [{ label: 'A', points: 2 }, { label: 'B', points: 3 }, { label: 'C', points: 5 }] });
+  assert.equal(tasks.list().find((t) => t.id === id).points, 10, 'total = somme des sous-tâches');
+  const m = tasks.forKid(kid).today.find((o) => o.taskId === id);
+  assert.equal(m.stepsMode, 'each');
+  assert.throws(() => tasks.declare(kid, m.id), /au moins une/);
+  tasks.toggleStep(kid, m.id, m.steps[0].id, true);
+  tasks.toggleStep(kid, m.id, m.steps[1].id, true);
+  tasks.declare(kid, m.id); // pas besoin de tout cocher
+  assert.throws(() => tasks.approve(m.id, [m.steps[2].id]), /Aucune/, 'une étape non cochée ne compte pas');
+  const before = points.summary(kid).points;
+  const out = tasks.approve(m.id, [m.steps[1].id]); // le parent ne valide que B
+  assert.equal(out.points, 3);
+  assert.equal(points.summary(kid).points - before, 3);
+  const done = tasks.forKid(kid).today.find((o) => o.id === m.id);
+  assert.deepEqual(done.steps.map((s) => s.approved), [false, true, false]);
+  assert.equal(done.points, 3);
+});

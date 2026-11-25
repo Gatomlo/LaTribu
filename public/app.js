@@ -162,8 +162,19 @@ const emptyCard = (text) => `<div class="card mini">${text}</div>`;
 // ---------- Enfant ----------
 function stepList(o, can) {
   if (!o.steps || !o.steps.length) return '';
-  const n = o.steps.filter((x) => x.checked).length;
-  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="mini" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? 'text-decoration:line-through;opacity:.7' : ''}"><span aria-hidden="true">${x.checked ? '☑' : '☐'}</span>${esc(x.label)}</button>`).join('')}<div class="mini">${n}/${o.steps.length}</div></div>`;
+  const n = o.steps.filter((x) => x.checked).length, each = o.stepsMode === 'each', done = o.status === 'done';
+  const mark = (x) => (done && each ? (x.approved ? '☑' : '✗') : x.checked ? '☑' : '☐');
+  return `<div style="margin-top:6px">${o.steps.map((x) => `<button class="mini" ${can ? `data-a="step" data-id="${o.id}" data-step="${x.id}" data-on="${x.checked ? 0 : 1}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? 'text-decoration:line-through;opacity:.7' : ''}"><span aria-hidden="true">${mark(x)}</span><span class="sp">${esc(x.label)}</span>${each ? `<b>+${x.points}</b>` : ''}</button>`).join('')}<div class="mini">${n}/${o.steps.length}${each && !done ? ' · les sous-tâches non faites ne rapportent rien' : ''}</div></div>`;
+}
+// Validation parent : en mode « points par sous-tâche », chaque sous-tâche cochée se valide ou non (décochée = perdue).
+const desel = (S.desel = {});
+const reviewPts = (o) => (o.stepsMode === 'each' ? o.steps.filter((x) => x.checked && !(desel[o.id] || []).includes(x.id)).reduce((n, x) => n + x.points, 0) : o.points);
+function reviewSteps(o) {
+  if (o.stepsMode !== 'each') return stepList(o, false);
+  return `<div style="margin-top:6px">${o.steps.map((x) => {
+    const on = x.checked && !(desel[o.id] || []).includes(x.id);
+    return `<button class="mini" ${x.checked ? `data-a="rvstep" data-id="${o.id}" data-step="${x.id}"` : 'disabled'} style="display:flex;gap:8px;align-items:center;text-align:left;padding:5px 0;width:100%;${x.checked ? '' : 'opacity:.5'}"><span aria-hidden="true">${on ? '☑' : x.checked ? '☐' : '✗'}</span><span class="sp">${esc(x.label)}${x.checked ? '' : ' (non faite)'}</span><b>+${x.points}</b></button>`;
+  }).join('')}</div>`;
 }
 function missionRow(o, interactive) {
   const st = o.status, can = interactive && (st === 'todo' || st === 'refused');
@@ -171,7 +182,7 @@ function missionRow(o, interactive) {
   return `<div class="task ${st === 'refused' ? '' : st}"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b>
     <small>${esc(o.label)}${o.photoRequired && (st === 'todo' || st === 'refused') ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('camera')}Photo</span>` : ''}${o.queued ? '<span class="chip" style="padding:2px 7px;font-size:11px">En attente d\'envoi</span>' : ''}${o.remindAt ? `<span class="chip" style="padding:2px 7px;font-size:11px">${ic('bell')}${esc(o.remindAt)}</span>` : ''}</small>
     ${o.description ? `<div class="mini" style="margin-top:3px">${esc(o.description)}</div>` : ''}${st === 'refused' ? `<div class="mini" style="margin-top:3px;color:var(--ko)">Refusé${o.note ? ' : ' + esc(o.note) : ''}. À refaire.</div>` : ''}${stepList(o, can)}</div>
-    <span class="pts">+${o.points}</span>${interactive ? `<button class="chk ${st}" data-a="done" data-id="${o.id}" ${can && (!o.steps || o.steps.every((x) => x.checked)) ? '' : 'disabled'}>${icon}</button>` : ''}</div>`;
+    <span class="pts">+${o.points}</span>${interactive ? `<button class="chk ${st}" data-a="done" data-id="${o.id}" ${can && (!o.steps || !o.steps.length || (o.stepsMode === 'each' ? o.steps.some((x) => x.checked) : o.steps.every((x) => x.checked))) ? '' : 'disabled'}>${icon}</button>` : ''}</div>`;
 }
 function byMoment(list) {
   const now = new Date().getHours(), cur = now < 12 ? 'matin' : now < 18 ? 'apres' : 'soir';
@@ -212,7 +223,7 @@ function renderParent(a, nav) {
   }
   if (S.tab === 'home') {
     a.innerHTML = `<h2>À valider</h2><p class="mini" style="margin-top:2px">${S.review.length + S.pending.length ? 'Des décisions t\'attendent.' : 'Rien à valider pour le moment.'}</p>${pushBanner()}<div class="sec">Missions déclarées (${S.review.length})</div>` +
-      (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${esc(o.kidName)} · ${dl(o.doneAt)}</small>${stepList(o, false)}</div>${o.hasPhoto ? `<img class="thumb" src="api/occurrences/${o.id}/photo" alt="Photo" data-a="viewphoto" data-id="${o.id}">` : ''}<span class="pts">+${o.points}</span></div>
+      (S.review.map((o) => `<div class="task wait"><div class="ic">${esc(o.icon)}</div><div class="sp"><b>${esc(o.title)}</b><small>${esc(o.kidName)} · ${dl(o.doneAt)}</small>${reviewSteps(o)}</div>${o.hasPhoto ? `<img class="thumb" src="api/occurrences/${o.id}/photo" alt="Photo" data-a="viewphoto" data-id="${o.id}">` : ''}<span class="pts">+${reviewPts(o)}</span></div>
       <div class="row" style="margin-top:8px"><button class="btn ko sp" data-a="refusesheet" data-id="${o.id}">Refuser</button><button class="btn ok sp" data-a="approve" data-id="${o.id}">Valider</button></div>`).join('') || emptyCard('Aucune mission en attente.')) + purchasesSection();
   } else if (S.tab === 'tasks') {
     const plan = S.tasks.filter((t) => t.kind === 'plan'), open = S.tasks.filter((t) => t.kind === 'open');
@@ -262,11 +273,11 @@ function sheetPw() {
   return `<h2>Changer le mot de passe</h2>${field('f_cur', 'Mot de passe actuel', '', 'type="password"')}${field('f_new', 'Nouveau mot de passe (8 caractères minimum)', '', 'type="password"')}<button class="btn full" style="margin-top:18px" data-a="savepw">Enregistrer</button>`;
 }
 function sheetTask() {
-  const F = S.F, open = F.kind === 'open', ks = S.kids;
+  const F = S.F, open = F.kind === 'open', ks = S.kids, each = F.stepsMode === 'each' && (F.steps || []).length > 0;
   return `<h2>${F.id ? 'Modifier la tâche' : 'Nouvelle tâche'}</h2>${F.id ? '' : `<button class="btn ghost sm full" style="margin-top:10px" data-a="tplpicker">Choisir un modèle de tâche</button>`}${field('f_title', 'Titre', F.title, 'placeholder="Ex. Arroser les plantes"')}
   ${iconField(F, 'icon', ICONS)}
   <label>Description (facultatif)</label><textarea id="f_desc" rows="2" placeholder="Ex. Toutes les plantes du salon">${esc(F.description)}</textarea>
-  <label>Points gagnés (valeur libre)</label><input id="f_pts" class="ptsin" type="number" inputmode="numeric" value="${esc(F.points)}" placeholder="0">
+  ${each ? `<label>Points gagnés</label><div class="mini">Total possible : <b>${(F.steps || []).reduce((n, x) => n + (Number(x.points) || 0), 0)}</b> (somme des sous-tâches)</div>` : `<label>Points gagnés (valeur libre)</label><input id="f_pts" class="ptsin" type="number" inputmode="numeric" value="${esc(F.points)}" placeholder="0">`}
   ${F.id ? '' : `<label>Quand ?</label>${chips('fset', 'kind', [['plan', 'Planifiée'], ['open', 'Ouverte']], (v) => F.kind === v)}`}
   <label>Pour qui ?</label><div class="opts">${ks.map((k) => `<button class="${F.kids.includes(k.id) ? 'on' : ''}" data-a="ftoggle" data-f="kids" data-v="${k.id}">${esc(k.name)}</button>`).join('')}<button class="${F.kids.length ? '' : 'on'}" data-a="fnone">Non attribuée</button></div>
   ${open ? '' : `<label>Répétition</label>${chips('fset', 'repeat', REPEATS, (v) => F.repeat === v)}
@@ -276,7 +287,8 @@ function sheetTask() {
   ${F.repeat === 'date' ? field('f_date', 'Date', F.date, 'type="date"') : ''}
   <label>Moment de la journée</label>${chips('fset', 'moment', [...MOMENTS, ['', 'Dans la journée']], (v) => (F.moment || '') === v)}`}
   <label>Sous-tâches (facultatif)</label>
-  ${(F.steps || []).map((x, i) => `<div class="row" style="margin-top:6px"><input id="f_step${i}" value="${esc(x.label)}" maxlength="80" placeholder="Ex. Vider le lave-vaisselle" style="flex:1"><button class="btn ghost sm" data-a="delstep" data-i="${i}" aria-label="Retirer la sous-tâche">×</button></div>`).join('')}
+  ${(F.steps || []).length ? `${chips('fset', 'stepsMode', [['all', 'Tout ou rien'], ['each', 'Points par sous-tâche']], (v) => (F.stepsMode || 'all') === v)}<p class="mini" style="margin-top:6px">${each ? 'Chaque sous-tâche validée rapporte ses points ; celles qui ne sont pas faites sont perdues.' : 'Toutes les sous-tâches doivent être faites pour gagner les points de la tâche.'}</p>` : ''}
+  ${(F.steps || []).map((x, i) => `<div class="row" style="margin-top:6px"><input id="f_step${i}" value="${esc(x.label)}" maxlength="80" placeholder="Ex. Vider le lave-vaisselle" style="flex:1">${each ? `<input id="f_stepp${i}" class="ptsin" type="number" inputmode="numeric" value="${esc(x.points || '')}" placeholder="pts" style="width:72px">` : ''}<button class="btn ghost sm" data-a="delstep" data-i="${i}" aria-label="Retirer la sous-tâche">×</button></div>`).join('')}
   ${(F.steps || []).length < 12 ? `<button class="btn ghost sm full" style="margin-top:8px" data-a="addstep">${ic('plus')}Ajouter une sous-tâche</button>` : ''}
   <div class="line" data-a="fphoto" style="border:0;padding-bottom:0">${ic('camera')}<div class="sp"><b>Photo demandée</b></div>${sw(F.photoRequired)}</div>
   ${open ? '' : `<label>Rappel sur le téléphone</label>${chips('fset', 'remindAt', [['', 'Aucun'], ['07:30', '07:30'], ['16:30', '16:30'], ['18:00', '18:00'], ['19:30', '19:30']], (v) => (F.remindAt || '') === v)}
@@ -583,7 +595,7 @@ function readInputs() {
   if (g('f_md')) F.monthDay = g('f_md').value;
   if (g('f_date')) F.date = g('f_date').value;
   if (g('f_rt')) F.remindAt = g('f_rt').value;
-  (F.steps || []).forEach((x, i) => { if (g('f_step' + i)) x.label = g('f_step' + i).value; });
+  (F.steps || []).forEach((x, i) => { if (g('f_step' + i)) x.label = g('f_step' + i).value; if (g('f_stepp' + i)) x.points = g('f_stepp' + i).value; });
   if (g('f_delta')) F.delta = g('f_delta').value;
   if (g('f_label')) F.label = g('f_label').value;
   if (g('f_btitle')) F.title = g('f_btitle').value;
@@ -594,8 +606,8 @@ function readInputs() {
   if (g('f_stock')) F.stock = g('f_stock').value;
 }
 const val = (id) => (document.getElementById(id) || {}).value || '';
-const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false, steps: [] });
-const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, steps: (F.steps || []).filter((x) => x.label.trim()) });
+const blankTask = () => ({ title: '', description: '', icon: '✨', points: '', kind: 'plan', kids: S.kids.length ? [S.kids[0].id] : [], repeat: 'daily', days: [1, 3, 5], monthDay: 1, date: '', moment: 'soir', remindAt: '', photoRequired: false, steps: [], stepsMode: 'all' });
+const taskBody = (F) => ({ title: F.title, description: F.description, icon: F.icon, points: Number(F.points), kind: F.kind, kids: F.kids, repeat: F.repeat, days: F.days, monthDay: Number(F.monthDay), date: F.date, moment: F.moment || null, remindAt: F.remindAt || null, photoRequired: !!F.photoRequired, steps: (F.steps || []).filter((x) => x.label.trim()).map((x) => ({ id: x.id, label: x.label, points: Number(x.points) || 0 })), stepsMode: (F.steps || []).some((x) => x.label.trim()) ? F.stepsMode : 'all' });
 
 // ---------- Actions ----------
 const A = {
@@ -661,7 +673,7 @@ const A = {
   newtask() { S.F = blankTask(); S.sheet = sheetTask; },
   edittask(d) {
     const t = S.tasks.find((x) => x.id === Number(d.id));
-    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired, steps: (t.steps || []).map((x) => ({ ...x })) };
+    S.F = { id: t.id, title: t.title, description: t.description, icon: t.icon, points: t.points, kind: t.kind, kids: t.kids.slice(), repeat: t.repeat || 'daily', days: t.days ? t.days.slice() : [1, 3, 5], monthDay: t.monthDay || 1, date: t.date || '', moment: t.moment || '', remindAt: t.remindAt || '', photoRequired: t.photoRequired, steps: (t.steps || []).map((x) => ({ ...x })), stepsMode: t.stepsMode || 'all' };
     S.sheet = sheetTask;
   },
   async savetask() {
@@ -673,7 +685,10 @@ const A = {
   async confirmdeltask() { await api(`tasks/${S.F.id}`, 'DELETE'); S.sheet = null; toast('Tâche supprimée'); },
 
   // validation (parent)
-  async approve(d) { const r = await api(`occurrences/${d.id}/approve`, 'POST', {}); confetti(); beep(); toast(`+${r.points} pts pour ${kidName(r.kidId)}${r.awarded.length ? ` · bonus de série +${r.awarded[0].points}` : ''}`); },
+  rvstep(d) { const id = Number(d.id), st = Number(d.step), l = (desel[id] = desel[id] || []), i = l.indexOf(st); if (i >= 0) l.splice(i, 1); else l.push(st); },
+  async approve(d) {
+    const o = S.review.find((x) => x.id === Number(d.id)), body = o && o.stepsMode === 'each' ? { steps: o.steps.filter((x) => x.checked && !(desel[o.id] || []).includes(x.id)).map((x) => x.id) } : {};
+    const r = await api(`occurrences/${d.id}/approve`, 'POST', body); confetti(); beep(); toast(`+${r.points} pts pour ${kidName(r.kidId)}${r.awarded.length ? ` · bonus de série +${r.awarded[0].points}` : ''}`); },
   refusesheet(d) { S.F = { id: Number(d.id) }; S.sheet = sheetRefuse; },
   async refuse() { await api(`occurrences/${S.F.id}/refuse`, 'POST', { note: val('f_note') }); S.sheet = null; toast('Renvoyé à l\'enfant'); },
   adjsheet(d) { S.F = { id: Number(d.id), delta: '', label: '' }; S.sheet = sheetAdjust; },
@@ -690,8 +705,8 @@ const A = {
   // photo, stats, modèles, gestion d'un enfant
   viewphoto(d) { S.F = { id: Number(d.id) }; S.sheet = sheetPhoto; },
   fphoto() { S.F.photoRequired = !S.F.photoRequired; },
-  addstep() { (S.F.steps = S.F.steps || []).push({ label: '' }); setTimeout(() => { const el = document.getElementById('f_step' + (S.F.steps.length - 1)); if (el) el.focus(); }, 0); },
-  delstep(d) { S.F.steps.splice(Number(d.i), 1); },
+  addstep() { (S.F.steps = S.F.steps || []).push({ label: '', points: '' }); setTimeout(() => { const el = document.getElementById('f_step' + (S.F.steps.length - 1)); if (el) el.focus(); }, 0); },
+  delstep(d) { S.F.steps.splice(Number(d.i), 1); if (!S.F.steps.length) S.F.stepsMode = 'all'; },
   ractive() { S.F.active = !S.F.active; },
   async photoglobal() { S.settings = await api('settings', 'PUT', { photo: { enabled: !S.settings.photo.enabled } }); },
   async photokeep(d) { S.settings = await api('settings', 'PUT', { photo: { keepDays: Number(d.v) } }); },
