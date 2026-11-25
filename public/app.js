@@ -35,7 +35,7 @@ async function api(path, method = 'GET', body) {
   try {
     res = await fetch('api/' + path, {
       method,
-      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(S.viewAs && method === 'GET' ? { 'X-View-As': String(S.viewAs) } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -49,7 +49,7 @@ async function api(path, method = 'GET', body) {
 }
 
 // ---------- État ----------
-const S = { session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
+const S = { viewAs: null, session: null, view: 'login', tab: 'home', pin: '', kidId: null, profiles: [], kids: [], tasks: [], review: [], me: null, missions: { today: [], open: [], upcoming: [] }, hist: [], shop: { rewards: [], accessories: [] }, purchases: [], rewards: [], accessories: [], pending: [], shopSeg: 'rew', settings: { streakBonus: {}, notif: { alert: true, digest: '20:00', remindAgain: true }, photo: { enabled: false, keepDays: 7 } }, templates: [], taskDraft: null, offline: false, push: 'unknown', fx: false, sheet: null, F: {} };
 
 function toast(m) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
@@ -84,8 +84,8 @@ async function loadData() {
   } else if (S.view === 'kid') {
     [S.me, S.missions] = await Promise.all([api('me'), api('me/missions')]);
     const cel = S.me.celebrate; // niveau gagné ou badge obtenu depuis la dernière ouverture
-    if (!S.sheet && (cel.levelUp || cel.badges.length || cel.perfectDay || cel.kudos.length)) { S.sheet = sheetCelebrate; S.fx = true; }
-    applyQueued(); kidCacheSave();
+    if (!S.viewAs && !S.sheet && (cel.levelUp || cel.badges.length || cel.perfectDay || cel.kudos.length)) { S.sheet = sheetCelebrate; S.fx = true; } // l'aperçu parent ne « voit » rien à la place de l'enfant
+    if (!S.viewAs) { applyQueued(); kidCacheSave(); }
     if (S.tab === 'shop') [S.shop, S.purchases] = await Promise.all([api('me/shop'), api('me/purchases')]);
     if (S.tab === 'me') [S.hist, S.purchases] = await Promise.all([api('me/history'), api('me/purchases')]);
   }
@@ -206,6 +206,7 @@ function renderKid(a, nav) {
   const hero = `<div class="hero" style="--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(m)}<div class="sp"><small>${esc(m.name)}</small><div style="font-weight:700;font-size:18px">Niveau ${m.level}</div></div><span class="chip">${ic('flame')}${m.streak} j</span></div>
     <div style="margin-top:16px"><small>Points</small><div class="big">${m.points}</div></div><div class="bar"><i style="width:${m.xpInLevel / m.levelXp * 100}%"></i></div><small>${m.levelXp - m.xpInLevel} XP avant le niveau ${m.level + 1}</small></div>`;
   const M = S.missions;
+  const preview = S.viewAs ? `<div style="position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;background:#2a2418;color:#fff;padding:8px 8px 8px 14px;border-radius:12px;margin-bottom:10px;font-size:13px">${ic('user')}<span class="sp">Vue de <b>${esc(m.name)}</b> · lecture seule</span><button class="btn sm" data-a="exitview">Quitter</button></div>` : '';
   if (S.tab === 'home') {
     const done = M.today.filter((o) => o.status === 'done').length;
     a.innerHTML = hero + offlineBanner() + pushBanner() + kudosCard() + goalCard() + (M.today.length ? `<div class="sec" style="margin-bottom:-14px">Aujourd'hui · ${done}/${M.today.length} faites</div>${byMoment(M.today)}`
@@ -217,6 +218,7 @@ function renderKid(a, nav) {
     a.innerHTML = hero + `<div class="sec">Badges</div><div class="badges">${m.badges.map((b) => `<div class="bdg ${b.earned ? '' : 'lock'}" title="${esc(b.desc)}"><i>${esc(b.emoji)}</i>${esc(b.title)}</div>`).join('')}</div><button class="btn ghost full" style="margin-top:16px" data-a="stats">Ma semaine en chiffres</button><div class="sec">Historique</div><div class="card" style="padding:0 14px">${S.hist.slice(0, 3).map(histRow).join('') || '<div class="line mini">Rien pour l\'instant.</div>'}${S.hist.length ? '<button class="btn ghost sm full" style="margin:4px 0 14px" data-a="hist">Tout voir</button>' : ''}</div>
     <div class="sec">Application</div>${installCard()}<div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}${S.push === 'on' ? '<button class="btn ghost sm full" style="margin-bottom:14px" data-a="pushtest">Voir un exemple de rappel</button>' : ''}</div><div class="card" style="margin-top:14px;padding:0 14px"><div class="line" data-a="sound"><div class="sp"><b>Sons</b><div class="mini">Petits sons de réussite (coupés par défaut)</div></div>${sw(soundOn())}</div></div><div class="card mini" style="margin-top:14px">Session ouverte sur ce téléphone : pas besoin de ressaisir ton code.</div><button class="btn ghost full" style="margin-top:18px" data-a="logout">Me déconnecter</button>`;
   } else a.innerHTML = kidShop();
+  if (preview) a.innerHTML = preview + a.innerHTML;
 }
 
 // ---------- Parent ----------
@@ -237,7 +239,7 @@ function renderParent(a, nav) {
   } else if (S.tab === 'kids') {
     a.innerHTML = `<h2>Enfants</h2>` + S.kids.map((k) => { const c = PAL[k.palette % PAL.length]; return `<div class="hero" style="margin-top:14px;--c1:${c[0]};--c2:${c[1]}"><div class="row">${heroAvatar(k, 48)}<div class="sp"><b style="font-size:18px">${esc(k.name)}</b>${k.age ? ' · ' + k.age + ' ans' : ''}<br><small>Niveau ${k.level} · ${k.xp} XP · série ${k.streak} j · ${k.badges} badge${k.badges > 1 ? 's' : ''}</small></div></div>
       <div class="row" style="margin-top:14px"><div class="big sp">${k.points}<small style="font-size:14px;font-weight:500"> pts</small></div><button class="btn sm" style="background:#ffffff2e" data-a="adjsheet" data-id="${k.id}">Ajuster</button></div></div>
-      <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="stats" data-id="${k.id}">Stats</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Badge</button><button class="btn ghost sm sp" data-a="kudossheet" data-id="${k.id}">Bravo</button></div>`; }).join('');
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm sp" data-a="hist" data-id="${k.id}">Historique</button><button class="btn ghost sm sp" data-a="stats" data-id="${k.id}">Stats</button><button class="btn ghost sm sp" data-a="badgesheet" data-id="${k.id}">Badge</button><button class="btn ghost sm sp" data-a="kudossheet" data-id="${k.id}">Bravo</button></div><button class="btn ghost sm full" style="margin-top:8px" data-a="viewas" data-id="${k.id}">${ic('user')}Voir comme ${esc(k.name)}</button>`; }).join('');
   } else if (S.tab === 'set') {
     a.innerHTML = `<h2>Réglages</h2><div class="sec">Enfants</div><div class="card" style="padding:0 14px">${S.kids.map((k) => `<div class="line">${avatar(k, 38)}<div class="sp"><b>${esc(k.name)}</b><div class="mini">${k.age ? k.age + ' ans · ' : ''}${k.points} pts</div></div><button class="btn ghost sm" data-a="managekid" data-id="${k.id}">Gérer</button></div>`).join('')}<div class="line" data-a="newkid" style="color:var(--acc);font-weight:600">${ic('plus')}Ajouter un enfant</div></div>
     <div class="sec">Application</div>${installCard()}<div class="sec">Notifications</div><div class="card" style="padding:0 14px">${pushLine()}
@@ -442,6 +444,7 @@ async function pushRefresh() {
 }
 // Encart d'activation, tant que les notifications ne sont pas actives (masqué 7 jours après « Plus tard »).
 function pushBanner() {
+  if (S.viewAs) return '';
   const st = S.push, ios = isIOS && !standalone();
   if (st === 'on' || st === 'unknown' || (st === 'unsupported' && !ios)) return '';
   try { if (Date.now() - Number(localStorage.getItem('tribu_push_later') || 0) < 7 * 864e5) return ''; } catch { /* stockage indisponible */ }
@@ -686,6 +689,8 @@ const A = {
   async notifagain() { S.settings = await api('settings', 'PUT', { notif: { remindAgain: !S.settings.notif.remindAgain } }); },
   async notifdigest(d) { S.settings = await api('settings', 'PUT', { notif: { digest: d.v || null } }); },
   sound() { try { localStorage.setItem('tribu_sound', soundOn() ? '0' : '1'); } catch { /* stockage indisponible */ } beep(); },
+  viewas(d) { S.viewAs = Number(d.id); S.view = 'kid'; S.tab = 'home'; S.me = null; S.missions = { today: [], open: [], upcoming: [] }; S.sheet = null; },
+  exitview() { S.viewAs = null; S.view = 'parent'; S.tab = 'kids'; S.me = null; S.sheet = null; },
   async streakmin(d) { await api(`kids/${S.F.id}`, 'PATCH', { streakMin: Number(d.v) }); toast('Série mise à jour'); },
   async kudossheet(d) { S.stickers = S.stickers || await api('stickers'); S.F = { id: Number(d.id), sticker: 'bravo', note: '', kpts: '' }; S.sheet = sheetKudos; },
   kpick(d) { S.F.sticker = d.v; },
@@ -832,6 +837,7 @@ const A = {
 
 // Actions qui ne changent que le formulaire ouvert : pas de rechargement des données, la fiche est mise à jour sur place
 // (même élément, même défilement, aucune animation d'ouverture rejouée).
+const VIEW_OK = new Set(['tab', 'shopseg', 'stats', 'statnav', 'sound', 'closesheet', 'exitview']); // seules actions permises en aperçu parent
 const LOCAL = new Set(['fset', 'ftoggle', 'fall', 'fnone', 'kpick', 'fphoto', 'addstep', 'delstep', 'fshared', 'ractive', 'quick', 'ipick', 'icat', 'ichoose', 'iuse']);
 function renderSheetInPlace() {
   const sh = S.sheet && document.querySelector('.sheet-bg .sheet');
@@ -848,6 +854,7 @@ document.addEventListener('click', async (e) => {
   const f = A[b.dataset.a];
   if (!f) return;
   readInputs();
+  if (S.viewAs && !VIEW_OK.has(b.dataset.a)) { toast('Aperçu en lecture seule : rien ne peut être modifié.'); return; }
   try {
     await f(b.dataset);
     if (LOCAL.has(b.dataset.a) && renderSheetInPlace()) return;

@@ -28,6 +28,7 @@ const client = (ip) => {
     return { status: res.status, data: await res.json().catch(() => ({})), headers: res.headers };
   };
   call.ip = ip;
+  call.cookie = () => cookie;
   return call;
 };
 let n = 0;
@@ -130,4 +131,16 @@ test('en-têtes et erreurs : API jamais en cache, messages internes masqués', a
   assert.equal(big.status, 413);
   assert.equal(big.data.error, 'Requête trop volumineuse.');
   assert.equal((await anon('kids')).headers.get('cache-control'), 'no-store');
+});
+
+test('voir comme : un parent lit l\'écran d\'un enfant, sans rien pouvoir modifier', async () => {
+  const { parent, kid: k } = await family();
+  const asKid = async (path, method = 'GET', as = k, withCookie = true) =>
+    (await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', 'X-View-As': String(as), ...(withCookie ? { cookie: parent.cookie() } : {}), 'X-Forwarded-For': parent.ip } })).status;
+  assert.equal(await asKid('me'), 200);
+  assert.equal(await asKid('me/missions'), 200);
+  assert.equal(await asKid('me/seen', 'POST'), 403, 'aucune écriture en aperçu');
+  assert.equal(await asKid('me/purchases', 'POST'), 403);
+  assert.equal(await asKid('me', 'GET', 99999), 404);
+  assert.equal(await asKid('me', 'GET', k, false), 401, 'sans connexion parent, l\'en-tête ne donne rien');
 });
